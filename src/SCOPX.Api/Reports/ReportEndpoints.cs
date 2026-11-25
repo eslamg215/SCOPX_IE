@@ -19,7 +19,7 @@ public static class ReportEndpoints
  }
  private static async Task<AuthContext?> Resolve(HttpContext c,IUserRepository u,ISessionRepository s,IHospitalMembershipRepository m,CancellationToken ct){var token=AuthHeaderReader.ReadBearer(c.Request.Headers.Authorization.ToString());if(token is null)return null;var sess=await s.FindActiveByTokenHashAsync(SessionToken.Hash(token),DateTimeOffset.UtcNow,ct);if(sess is null)return null;var user=await u.FindByIdAsync(sess.UserId,ct);if(user is not{Status:"active"})return null;if(!Guid.TryParse(c.Request.Headers["X-Hospital-ID"].ToString(),out var hid))return null;var member=await m.FindActiveForUserAndHospitalAsync(user.Id,hid,ct);return member is null?null:new(user.Id,member.MembershipId,hid,member.RoleCodes.ToArray());}
  private static bool CanRead(string[] roles)=>roles.Any(x=>new[]{"hospital_admin","doctor","nurse","auditor","endoscopy_technician"}.Contains(x,StringComparer.OrdinalIgnoreCase));
- private static bool CanWrite(string[] roles)=>roles.Any(x=>new[]{"hospital_admin","doctor"}.Contains(x,StringComparer.OrdinalIgnoreCase));
- private static bool CanReview(string[] roles)=>roles.Any(x=>new[]{"hospital_admin","doctor"}.Contains(x,StringComparer.OrdinalIgnoreCase));
+ private static bool CanWrite(string[] roles)=>roles.Contains("doctor",StringComparer.OrdinalIgnoreCase);
+ private static bool CanReview(string[] roles)=>roles.Contains("doctor",StringComparer.OrdinalIgnoreCase);
  private sealed record AuthContext(Guid UserId,Guid MembershipId,Guid HospitalId,string[] Roles);
 }
