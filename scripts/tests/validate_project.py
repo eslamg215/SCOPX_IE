@@ -107,6 +107,7 @@ if procedure_api.exists():
     check('/patient/{patientId:guid}' in pt and '/start' in pt and '/complete' in pt, 'procedure list, start, and completion routes are defined')
     check('FindActiveForUserAndHospitalAsync' in pt and 'AuthHeaderReader.ReadBearer' in pt, 'procedure routes validate active session and hospital membership')
     check('invalid_procedure_transition' in pt and 'CanCreate' in pt, 'procedure workflow transitions and role policy are checked')
+    check('a.Roles.Contains("doctor",StringComparer.OrdinalIgnoreCase)' in pt, 'procedure completion is restricted to a doctor membership')
 check('MapProcedureEndpoints' not in program and 'IProcedureRepository' not in program, 'clinical procedure routes remain disabled pending audit integration')
 
 # Step 27 report draft/review workflow checks
@@ -124,6 +125,7 @@ if report_api.exists():
     rt=report_api.read_text(encoding='utf-8')
     check('/procedure/{procedureId:guid}' in rt and 'submit-review' in rt and 'MapReportEndpoints' in rt, 'report list, draft, and review routes are present')
     check('FindActiveForUserAndHospitalAsync' in rt and 'AuthHeaderReader.ReadBearer' in rt, 'report API validates session and hospital membership')
+    check('CanWrite(string[] roles)=>roles.Contains("doctor"' in rt and 'CanReview(string[] roles)=>roles.Contains("doctor"' in rt, 'report drafting and review are restricted to doctors')
 check('MapReportEndpoints' not in program and 'IReportRepository' not in program, 'clinical report routes remain disabled pending audit integration')
 
 # Step 28 media storage scaffold checks
