@@ -171,7 +171,7 @@ The runtime grant template is scripts/database/Grant-RuntimePrivileges.sql; the 
 
 The API exposes /health for liveness and /health/ready for a database SELECT 1 connectivity probe; the Windows workstation uses the readiness endpoint but does not claim schema or clinical readiness.
 
-For local development, Prepare-DevRuntimeRole.ps1 creates/verifies a separate non-owner runtime login; Apply-DevDatabaseSecurity.ps1 applies migrations/grants and synthetic checks only after an explicit confirmation and only to scopx_dev. The API launcher refuses owner credentials.
+For local development, Prepare-DevRuntimeRole.ps1 creates/verifies a separate non-owner runtime login; Apply-DevDatabaseSecurity.ps1 applies migrations/grants and synthetic checks only after an explicit confirmation and only to scopx_dev. The API launcher refuses owner credentials. Bootstrap-DevAdmin.ps1 creates the first hospital_admin account only when the development users/hospitals tables are empty; it uses ASP.NET Core password hashing and a hidden password prompt.
 
 Windows API startup is available through scripts/windows/Start-DevApi.ps1; it reads ConnectionStrings__ScopxDb from the ignored local .env file, does not print the secret, and never auto-applies migrations. It refuses to start if the API connection string uses the database-owner account; configure the separate least-privilege scopx_runtime role first.
 
