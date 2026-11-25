@@ -248,6 +248,21 @@ if api_launcher.exists():
     check('docker inspect' in launch_text and "healthy" in launch_text, 'API launcher requires a healthy local PostgreSQL container')
 env_example=(ROOT/'.env.example').read_text(encoding='utf-8')
 check('ConnectionStrings__ScopxDb=' in env_example, 'environment example includes a local API connection string template')
+check('Username=scopx_runtime' in env_example, 'API connection string template uses the least-privilege runtime role')
+if api_launcher.exists():
+    check('scopx_runtime' in launch_text and 'must connect as' in launch_text, 'API launcher refuses database-owner credentials')
+runtime_setup=ROOT/'scripts/windows/Prepare-DevRuntimeRole.ps1'
+check(runtime_setup.exists(), 'interactive least-privilege runtime role setup script exists')
+if runtime_setup.exists():
+    runtime_text=runtime_setup.read_text(encoding='utf-8')
+    check('\\password scopx_runtime' in runtime_text and 'NOBYPASSRLS' in runtime_text, 'runtime role setup uses interactive password entry and safe role attributes')
+security_setup=ROOT/'scripts/windows/Apply-DevDatabaseSecurity.ps1'
+check(security_setup.exists(), 'guarded local migration and grant script exists')
+if security_setup.exists():
+    security_text=security_setup.read_text(encoding='utf-8')
+    check("APPLY SCOPX DEV SECURITY" in security_text and 'Validate-RuntimePrivileges.sql' in security_text, 'local database security setup requires confirmation and runs privilege validation')
+preflight=(ROOT/'scripts/windows/Preflight.ps1').read_text(encoding='utf-8')
+check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in preflight, 'Windows preflight checks migration runner dependencies')
 
 # Membership repository tenant-context repair checks
 membership_repo=hosp/'NpgsqlHospitalMembershipRepository.cs'
