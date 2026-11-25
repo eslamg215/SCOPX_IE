@@ -13,7 +13,7 @@ builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 
 
 // Development-only API scaffold. Authentication and hospital membership lookup
 // are enabled when configured; clinical and platform routes remain deliberately disabled.
- // Never connect this scaffold to real patient data.
+// Never connect this scaffold to real patient data.
 builder.Services.AddHealthChecks();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = 60 * 1024 * 1024);
 builder.Services.AddScoped<IPasswordHasher<AuthUser>, PasswordHasher<AuthUser>>();
@@ -29,7 +29,8 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     // Partition by the socket peer address so one client cannot consume the
-    // entire development API's shared rate-limit bucket.
+    // entire development API's shared rate-limit bucket. Production deployments
+    // behind a proxy must configure trusted forwarded headers before relying on this key.
     options.AddPolicy("api", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
