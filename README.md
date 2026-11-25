@@ -159,7 +159,7 @@ See `docs/RELEASE-v2.33.md` for verified changes and status. Responsive web demo
 
 ## Step 40 — Database security gate and fail-closed API
 
-The current security review branch deliberately maps only authentication and hospital-membership context routes. Patient, procedure, report, media, and platform-administration routes are **not mapped by the API host** until audit-event emission, media protections, and a separate privileged platform access path are implemented and tested. Their source files remain in the repository for continued development.
+The current security review branch deliberately maps only authentication and hospital-membership context routes. A transactional append-only audit writer is now integrated into patient, procedure, report, and media repository read/write operations; audit details contain operational metadata only, not clinical text or patient names. Patient, procedure, report, media, and platform-administration routes are still **not mapped by the API host** until media encryption, malware scanning, retention/backup controls, report signing/amendment controls, read/write audit integration testing, and a separate privileged platform access path are independently verified. Their source files remain in the repository for continued development.
 
 Database migration execution is opt-in for security-sensitive drafts:
 - --include-rls-draft includes migration 004.
