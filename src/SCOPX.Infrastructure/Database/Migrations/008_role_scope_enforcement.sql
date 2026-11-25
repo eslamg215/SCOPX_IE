@@ -31,7 +31,8 @@ DECLARE role_scope text;
 BEGIN
     SELECT scope INTO role_scope
     FROM public.roles
-    WHERE id = NEW.role_id;
+    WHERE id = NEW.role_id
+    FOR KEY SHARE;
 
     IF role_scope IS DISTINCT FROM 'hospital' THEN
         RAISE EXCEPTION 'only hospital-scoped roles may be assigned to hospital memberships'
