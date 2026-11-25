@@ -45,6 +45,7 @@ FROM patients WHERE hospital_id=@hospital AND id=@id LIMIT 1";
         await using var cmd = new NpgsqlCommand(sql,c,tx); cmd.Parameters.AddWithValue("hospital",hospitalId); cmd.Parameters.AddWithValue("id",patientId);
         await using var rd = await cmd.ExecuteReaderAsync(ct); PatientRecord? p=null;
         if(await rd.ReadAsync(ct)) p=new(rd.GetGuid(0),rd.GetGuid(1),rd.GetString(2),rd.GetString(3),rd.IsDBNull(4)?null:DateOnly.FromDateTime(rd.GetDateTime(4)),rd.IsDBNull(5)?null:rd.GetString(5),rd.IsDBNull(6)?null:rd.GetString(6),rd.IsDBNull(7)?null:rd.GetString(7),rd.GetString(8),rd.GetFieldValue<DateTimeOffset>(9),rd.GetFieldValue<DateTimeOffset>(10),rd.IsDBNull(11)?null:rd.GetFieldValue<DateTimeOffset>(11));
+        await rd.CloseAsync();
         await NpgsqlAuditEventWriter.WriteAsync(c, tx, hospitalId, actorUserId, "patient.read", "patient", patientId, new { found = p is not null }, ct);
         await tx.CommitAsync(ct); return p;
     }
