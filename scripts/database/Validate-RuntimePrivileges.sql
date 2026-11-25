@@ -6,7 +6,7 @@ DECLARE
     runtime_role name := 'scopx_runtime';
     tbl text;
     required_rls text[] := ARRAY[
-        'hospital_memberships','membership_roles','patients','procedures',
+        'hospital_memberships','membership_roles','hospitals','patients','procedures',
         'media_assets','procedure_reports','audit_events'
     ];
 BEGIN
@@ -42,7 +42,14 @@ BEGIN
         END IF;
     END LOOP;
 
-    IF NOT has_table_privilege(runtime_role, 'public.users', 'SELECT')
+    IF NOT has_column_privilege(runtime_role, 'public.users', 'id', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'email_normalized', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'display_name', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'status', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'password_hash', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'failed_login_count', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'lockout_until', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'last_login_at', 'SELECT')
        OR NOT has_column_privilege(runtime_role, 'public.users', 'password_hash', 'UPDATE')
        OR NOT has_column_privilege(runtime_role, 'public.users', 'failed_login_count', 'UPDATE')
        OR NOT has_column_privilege(runtime_role, 'public.users', 'lockout_until', 'UPDATE')
@@ -51,7 +58,11 @@ BEGIN
         RAISE EXCEPTION 'Runtime role is missing required users privileges';
     END IF;
 
-    IF NOT has_table_privilege(runtime_role, 'public.user_sessions', 'SELECT')
+    IF NOT has_column_privilege(runtime_role, 'public.user_sessions', 'id', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.user_sessions', 'user_id', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.user_sessions', 'token_hash', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.user_sessions', 'expires_at', 'SELECT')
+       OR NOT has_column_privilege(runtime_role, 'public.user_sessions', 'revoked_at', 'SELECT')
        OR NOT has_table_privilege(runtime_role, 'public.user_sessions', 'INSERT')
        OR NOT has_column_privilege(runtime_role, 'public.user_sessions', 'revoked_at', 'UPDATE') THEN
         RAISE EXCEPTION 'Runtime role is missing required user_sessions privileges';
