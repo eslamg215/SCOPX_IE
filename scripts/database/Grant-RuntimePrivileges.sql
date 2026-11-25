@@ -1,25 +1,54 @@
--- SCOPX.I.E least-privilege grant template. Review before applying.
--- Apply as schema/database owner in a disposable environment first.
--- Create the login separately using a secure password prompt/secret manager.
--- Example role attributes: LOGIN, NOSUPERUSER, NOCREATEDB, NOCREATEROLE,
--- NOINHERIT; never grant ownership, BYPASSRLS, or migration privileges.
+-- SCOPX.I.E least-privilege runtime grants.
+-- Apply only after migrations 001-007 and the RLS validation suite have passed
+-- in a disposable development database. Execute as the database/schema owner.
+-- Create scopx_runtime separately with LOGIN, NOSUPERUSER, NOCREATEDB,
+-- NOCREATEROLE, NOINHERIT. Never grant ownership, BYPASSRLS, or migration rights.
+--
+-- This is the shared API runtime role for the current scaffold. Platform-admin
+-- and licensing operations remain disabled until a separate privileged connection
+-- and independently authorized service are implemented.
 
--- Restrict PUBLIC on the project tables only (do not globally alter unrelated DB objects).
-REVOKE ALL ON patients, procedures, media_assets, procedure_reports,
-  hospital_memberships, membership_roles, audit_events, users, hospitals, roles,
+GRANT CONNECT ON DATABASE scopx_dev TO scopx_runtime;
+GRANT USAGE ON SCHEMA public TO scopx_runtime;
+
+-- Revoke broad defaults only on the SCOPX tables.
+REVOKE ALL ON TABLE
+  patients, procedures, media_assets, procedure_reports,
+  hospital_memberships, membership_roles, audit_events,
+  users, user_sessions, hospitals, roles,
   platform_user_roles, hospital_licenses, license_features,
-  license_activations, licensed_devices FROM PUBLIC;
+  license_activations, licensed_devices
+FROM PUBLIC;
 
+-- Clinical tenant records. RLS must be enabled and tested before granting access.
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON TABLE patients, procedures, media_assets, procedure_reports
+  TO scopx_runtime;
 
--- Runtime gets clinical tenant tables; RLS must be enabled and validated first.
-GRANT SELECT, INSERT, UPDATE, DELETE ON patients, procedures, media_assets, procedure_reports TO scopx_runtime;
-GRANT SELECT ON hospital_memberships, membership_roles TO scopx_runtime;
-GRANT SELECT, INSERT ON audit_events TO scopx_runtime;
-REVOKE UPDATE, DELETE ON audit_events FROM scopx_runtime;
+-- Authentication: only the columns required by the current repository methods.
+-- SELECT is table-level because login resolves a user by normalized email or ID;
+-- do not expose this connection string to clients or untrusted services.
+GRANT SELECT ON TABLE users TO scopx_runtime;
+GRANT UPDATE (password_hash, failed_login_count, lockout_until, last_login_at, updated_at)
+  ON TABLE users TO scopx_runtime;
 
--- Identity, platform, and licensing tables stay inaccessible until their specific
--- API and permissions are designed and tested.
-REVOKE ALL ON users, hospitals, roles, platform_user_roles, hospital_licenses,
-  license_features, license_activations, licensed_devices FROM scopx_runtime;
--- Schema access is a separate decision. If approved, grant USAGE on the schema
--- only (not CREATE); database connect permission is also managed separately.
+-- Opaque session hashes only; raw bearer tokens must never be persisted.
+GRANT SELECT, INSERT ON TABLE user_sessions TO scopx_runtime;
+GRANT UPDATE (revoked_at) ON TABLE user_sessions TO scopx_runtime;
+
+-- Membership discovery occurs before tenant context is selected. The repository
+-- sets scopx.user_id transaction-locally; membership_roles remains tenant-RLS scoped.
+GRANT SELECT ON TABLE hospitals, hospital_memberships, membership_roles, roles
+  TO scopx_runtime;
+
+-- Audit is append-only for the runtime.
+GRANT SELECT, INSERT ON TABLE audit_events TO scopx_runtime;
+REVOKE UPDATE, DELETE, TRUNCATE ON TABLE audit_events FROM scopx_runtime;
+
+-- No platform administration or licensing privileges are granted here.
+REVOKE ALL ON TABLE
+  platform_user_roles, hospital_licenses, license_features,
+  license_activations, licensed_devices
+FROM scopx_runtime;
+
+-- No CREATE, ALTER, DROP, ownership, sequence, or migration privileges are granted.
