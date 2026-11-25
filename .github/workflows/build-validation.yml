@@ -57,3 +57,54 @@ jobs:
             if (-not (Test-Path $file)) { throw "Missing migration: $file" }
           }
           Write-Host "All required migrations are present."
+  postgres-security-smoke:
+    name: PostgreSQL migrations, grants, and RLS smoke test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: scopx_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d scopx_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGDATABASE: scopx_dev
+      PGUSER: postgres
+      PGPASSWORD: ci-only-password
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Apply all reviewed draft migrations to disposable CI database
+        run: python scripts/database/Apply-Migrations.py --include-rls-draft --include-auth-draft --include-audit-hardening-draft --include-tenant-hardening-draft
+
+      - name: Create least-privilege runtime role
+        run: psql --no-psqlrc --set ON_ERROR_STOP=1 --command "CREATE ROLE scopx_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD 'ci-only-password';"
+
+      - name: Apply runtime grants
+        run: psql --no-psqlrc --set ON_ERROR_STOP=1 --file scripts/database/Grant-RuntimePrivileges.sql
+
+      - name: Validate runtime grants and RLS configuration
+        run: psql --no-psqlrc --set ON_ERROR_STOP=1 --file scripts/database/Validate-RuntimePrivileges.sql
+
+      - name: Test cross-tenant isolation, role scope, and audit immutability
+        run: psql --no-psqlrc --set ON_ERROR_STOP=1 --file scripts/tests/tenant-rls-ci-smoke.sql
