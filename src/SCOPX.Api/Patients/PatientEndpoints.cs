@@ -19,14 +19,14 @@ public static class PatientEndpoints
             if (!CanRead(auth.Roles)) return Results.Forbid();
             var pageSize = Math.Clamp(limit ?? 25, 1, 100); var pageOffset = Math.Clamp(offset ?? 0, 0, 100000);
             if (q?.Length > 100) return Results.BadRequest(new { error = "query_too_long" });
-            var items = await patients.SearchAsync(auth.HospitalId, q?.Trim(), pageSize, pageOffset, ct);
+            var items = await patients.SearchAsync(auth.HospitalId, auth.UserId, q?.Trim(), pageSize, pageOffset, ct);
             return Results.Ok(new { items, limit = pageSize, offset = pageOffset });
         });
         group.MapGet("/{id:guid}", async (Guid id, HttpContext ctx, IUserRepository users, ISessionRepository sessions, IHospitalMembershipRepository memberships, IPatientRepository patients, CancellationToken ct) =>
         {
             var auth = await ResolveContext(ctx, users, sessions, memberships, ct);
             if (auth is null) return Results.Unauthorized(); if (!CanReadDetails(auth.Roles)) return Results.Forbid();
-            var patient = await patients.GetAsync(auth.HospitalId, id, ct); return patient is null ? Results.NotFound() : Results.Ok(patient);
+            var patient = await patients.GetAsync(auth.HospitalId, auth.UserId, id, ct); return patient is null ? Results.NotFound() : Results.Ok(patient);
         });
         group.MapPost("", async (PatientCreateRequest input, HttpContext ctx, IUserRepository users, ISessionRepository sessions, IHospitalMembershipRepository memberships, IPatientRepository patients, CancellationToken ct) =>
         {
