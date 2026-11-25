@@ -21,6 +21,13 @@ if ([string]::IsNullOrWhiteSpace($connectionString)) {
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
   throw '.NET SDK was not found. Run Preflight.ps1 and install .NET 10 SDK.'
 }
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+  throw 'Docker command was not found. Start the local database with Start-DevDatabase.ps1 first.'
+}
+$dbHealth = docker inspect --format '{{.State.Health.Status}}' scopx-postgres-dev 2>$null
+if ($LASTEXITCODE -ne 0 -or $dbHealth -ne 'healthy') {
+  throw 'Local PostgreSQL is not healthy. Run scripts/windows/Start-DevDatabase.ps1 and retry.'
+}
 
 $sdks = dotnet --list-sdks 2>&1
 if ($LASTEXITCODE -ne 0 -or -not ($sdks -match '^10\.')) {
