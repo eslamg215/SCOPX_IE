@@ -79,6 +79,8 @@ WHERE hospital_id=@hospital AND id=@id AND status='active'";
         const string sql="UPDATE patients SET status='archived',archived_at=now(),updated_at=now() WHERE hospital_id=@hospital AND id=@id AND status='active'";
         await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var tx=await c.BeginTransactionAsync(ct); await SetTenantAsync(c,tx,hospitalId,ct);
         await using var cmd=new NpgsqlCommand(sql,c,tx); cmd.Parameters.AddWithValue("hospital",hospitalId); cmd.Parameters.AddWithValue("id",patientId);
-        var count=await cmd.ExecuteNonQueryAsync(ct); await tx.CommitAsync(ct); return count==1;
+        var count=await cmd.ExecuteNonQueryAsync(ct);
+        if (count == 1) await NpgsqlAuditEventWriter.WriteAsync(c, tx, hospitalId, actorUserId, "patient.archived", "patient", patientId, new { operation = "archive" }, ct);
+        await tx.CommitAsync(ct); return count==1;
     }
 }
