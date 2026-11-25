@@ -156,3 +156,19 @@ JavaScript syntax, manifest JSON, local HTML references, HTTP asset responses, a
 See `docs/RELEASE-v2.33.md` for verified changes and status. Responsive web demo install steps are in `src/SCOPX.Web/INSTALL-AND-TEST.md`. Android wrapper source/build steps are in `src/SCOPX.Android/README.md`.
 
 **Important:** synthetic data only; this is not clinically validated or production-ready. Android APK compilation still requires Android SDK and Gradle on a build machine.
+
+## Step 40 — Database security gate and fail-closed API
+
+The current security review branch deliberately maps only authentication and hospital-membership context routes. Patient, procedure, report, media, and platform-administration routes are **not mapped by the API host** until audit-event emission, media protections, and a separate privileged platform access path are implemented and tested. Their source files remain in the repository for continued development.
+
+Database migration execution is opt-in for security-sensitive drafts:
+- --include-rls-draft includes migration 004.
+- --include-auth-draft includes migrations 005 and 006 together.
+- --include-audit-hardening-draft includes migration 007.
+- --include-tenant-hardening-draft includes migrations 008 and 009 and requires --include-rls-draft.
+
+The runtime grant template is scripts/database/Grant-RuntimePrivileges.sql; the configuration preflight is scripts/database/Validate-RuntimePrivileges.sql. Do not run the grant script until migrations 001-009 have been reviewed and the RLS/runtime-role checks have been performed on a disposable database. Never use the database owner or a BYPASSRLS role as the application runtime role.
+
+GitHub Actions now builds the API and Windows workstation on pushes and pull requests. A queued or running workflow is not a passing build; check the Actions result before treating compilation as verified. No database migration, privilege script, tenant-isolation integration test, clinical workflow test, or clinical validation is claimed complete by this change.
+
+**Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
