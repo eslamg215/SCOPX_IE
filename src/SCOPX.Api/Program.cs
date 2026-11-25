@@ -5,15 +5,6 @@ using SCOPX.Infrastructure.Users;
 using SCOPX.Infrastructure.Sessions;
 using SCOPX.Infrastructure.Hospitals;
 using SCOPX.Api.Tenancy;
-using SCOPX.Api.Patients;
-using SCOPX.Infrastructure.Patients;
-using SCOPX.Api.Procedures;
-using SCOPX.Infrastructure.Procedures;
-using SCOPX.Api.Reports;
-using SCOPX.Infrastructure.Reports;
-using SCOPX.Infrastructure.Media;
-using SCOPX.Api.Media;
-using SCOPX.Api.PlatformAdmin;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -32,10 +23,6 @@ if (!string.IsNullOrWhiteSpace(databaseConnection))
     builder.Services.AddScoped<IUserRepository>(_ => new NpgsqlUserRepository(databaseConnection));
     builder.Services.AddScoped<ISessionRepository>(_ => new NpgsqlSessionRepository(databaseConnection));
     builder.Services.AddScoped<IHospitalMembershipRepository>(_ => new NpgsqlHospitalMembershipRepository(databaseConnection));
-    builder.Services.AddScoped<IPatientRepository>(_ => new NpgsqlPatientRepository(databaseConnection));
-    builder.Services.AddScoped<IProcedureRepository>(_ => new NpgsqlProcedureRepository(databaseConnection));
-    builder.Services.AddScoped<IReportRepository>(_ => new NpgsqlReportRepository(databaseConnection));
-    builder.Services.AddScoped<IMediaRepository>(_ => new NpgsqlMediaRepository(databaseConnection));
 }
 builder.Services.AddRateLimiter(options =>
 {
@@ -91,21 +78,21 @@ app.MapGet("/api/v1/system", () => Results.Ok(new
     apiVersion = "v1",
     environment = app.Environment.EnvironmentName,
     status = "scaffold",
-    features = new[] { "health-check", "system-metadata", "rate-limiting", "security-headers", "correlation-id", "password-hash-helper" }
+    features = new[] { "health-check", "system-metadata", "rate-limiting", "security-headers", "correlation-id", "password-hash-helper", "authentication", "hospital-membership-context" },
+    clinicalApiEnabled = false,
+    platformAdminApiEnabled = false,
+    note = "Clinical and platform administration routes are withheld until audit logging and separate privileged access are implemented and tested."
 })).RequireRateLimiting("api");
 
-// The patient endpoint is intentionally not created until auth, tenant isolation,
-// database connectivity, audit, and validation are tested together.
+// Clinical and platform-administration routes remain deliberately disabled.
+// They must not be exposed until append-only audit recording is wired into every
+// sensitive operation and platform administration uses a separately restricted
+// connection with independently tested authorization.
 app.MapHealthChecks("/health").RequireRateLimiting("api");
 if (!string.IsNullOrWhiteSpace(databaseConnection))
 {
     app.MapAuthEndpoints();
     app.MapHospitalContextEndpoints();
-    app.MapPatientEndpoints();
-    app.MapProcedureEndpoints();
-    app.MapReportEndpoints();
-    app.MapMediaEndpoints();
-    app.MapPlatformAdminEndpoints(databaseConnection);
 }
 else
 {
