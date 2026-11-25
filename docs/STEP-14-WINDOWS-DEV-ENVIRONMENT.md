@@ -8,6 +8,7 @@ Provide repeatable, low-risk local setup scripts for a Windows workstation. This
 - `scripts/windows/Start-DevDatabase.ps1`: creates `.env` from the example when absent, starts PostgreSQL, and waits for its health check.
 - `scripts/windows/Stop-DevDatabase.ps1`: stops the DB container without deleting its persistent volume.
 - `scripts/windows/Backup-DevDatabase.ps1`: writes a local development SQL dump.
+- `scripts/windows/Start-DevApi.ps1`: reads `ConnectionStrings__ScopxDb` from the ignored local `.env` file and launches the API without printing the secret.
 
 ## User setup sequence
 1. Install Git, Docker Desktop, and .NET 10 SDK from official sources.
@@ -17,6 +18,8 @@ Provide repeatable, low-risk local setup scripts for a Windows workstation. This
 5. Review `.env`; replace the local development password. Do not reuse a real password.
 6. Run `./scripts/windows/Start-DevDatabase.ps1`.
 7. Confirm health with `docker compose ps` and `docker compose logs db`.
+8. Add `ConnectionStrings__ScopxDb=...` to the local `.env` file if it is not already present; never share or commit this value.
+9. Run `./scripts/windows/Start-DevApi.ps1` in a separate PowerShell window to start the API. It does not apply migrations automatically.
 
 ## Backup
 Run `./scripts/windows/Backup-DevDatabase.ps1`. Backup output defaults to `./backups`; keep backups out of source control. This script is a development convenience, not a validated production backup solution. Test restore procedures before relying on backups.
@@ -26,5 +29,5 @@ Run `./scripts/windows/Backup-DevDatabase.ps1`. Backup output defaults to `./bac
 - Use synthetic/test data only. Never enter patient data.
 - Do not expose PostgreSQL to public networks.
 - The compose port is bound to loopback.
-- Database migrations are deliberately not auto-applied by these scripts; they remain draft and must be reviewed, especially the RLS migration.
+- Database migrations and runtime grants are deliberately not auto-applied by these scripts; they remain opt-in and must be reviewed, especially RLS and tenant hardening.
 - Do not treat the preflight as a build/test check. The .NET build and integration tests remain unrun until the SDK and environment are available.
