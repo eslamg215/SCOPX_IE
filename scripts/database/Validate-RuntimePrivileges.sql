@@ -1,4 +1,4 @@
--- SCOPX.I.E runtime-role preflight. Run after migrations 001-008 and
+-- SCOPX.I.E runtime-role preflight. Run after migrations 001-009 and
 -- Grant-RuntimePrivileges.sql, as a database owner, against the target dev DB.
 -- This checks configuration only; it does not replace cross-tenant integration tests.
 DO $$
