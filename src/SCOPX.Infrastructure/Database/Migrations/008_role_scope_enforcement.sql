@@ -50,7 +50,8 @@ DECLARE role_scope text;
 BEGIN
     SELECT scope INTO role_scope
     FROM public.roles
-    WHERE id = NEW.role_id;
+    WHERE id = NEW.role_id
+    FOR KEY SHARE;
 
     IF role_scope IS DISTINCT FROM 'platform' THEN
         RAISE EXCEPTION 'only platform-scoped roles may be assigned as platform roles'
