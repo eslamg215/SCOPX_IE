@@ -31,6 +31,7 @@ ORDER BY full_name, id LIMIT @limit OFFSET @offset";
         cmd.Parameters.AddWithValue("offset", NpgsqlDbType.Integer, offset);
         await using var rd = await cmd.ExecuteReaderAsync(ct); var rows = new List<PatientListItem>();
         while (await rd.ReadAsync(ct)) rows.Add(new(rd.GetGuid(0), rd.GetString(1), rd.GetString(2), rd.IsDBNull(3)?null:DateOnly.FromDateTime(rd.GetDateTime(3)), rd.IsDBNull(4)?null:rd.GetString(4), rd.IsDBNull(5)?null:rd.GetString(5), rd.GetString(6), rd.GetFieldValue<DateTimeOffset>(7)));
+        await rd.CloseAsync();
         await NpgsqlAuditEventWriter.WriteAsync(c, tx, hospitalId, actorUserId, "patient.listed", "patient_collection", hospitalId, new { result_count = rows.Count }, ct);
         await tx.CommitAsync(ct); return rows;
     }
