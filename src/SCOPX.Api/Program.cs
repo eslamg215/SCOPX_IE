@@ -108,6 +108,30 @@ app.MapGet("/api/v1/system", () => Results.Ok(new
 // sensitive operation and platform administration uses a separately restricted
 // connection with independently tested authorization.
 app.MapHealthChecks("/health").RequireRateLimiting("api");
+
+// Readiness is distinct from liveness: this probe verifies only that the configured
+// PostgreSQL connection can open and execute SELECT 1. It does not validate schema,
+// migrations, tenant policies, or clinical workflows.
+app.MapGet("/health/ready", async (CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(databaseConnection))
+        return Results.Json(new { status = "not_ready", database = "not_configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+
+    try
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(databaseConnection);
+        await connection.OpenAsync(ct);
+        await using var command = new Npgsql.NpgsqlCommand("SELECT 1", connection);
+        await command.ExecuteScalarAsync(ct);
+        return Results.Ok(new { status = "ready", database = "reachable" });
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning("Database readiness probe failed ({ExceptionType}).", ex.GetType().Name);
+        return Results.Json(new { status = "not_ready", database = "unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).RequireRateLimiting("api");
+
 if (!string.IsNullOrWhiteSpace(databaseConnection))
 {
     app.MapAuthEndpoints();
