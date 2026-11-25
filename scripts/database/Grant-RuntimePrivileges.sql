@@ -1,5 +1,5 @@
 -- SCOPX.I.E least-privilege runtime grants.
--- Apply only after migrations 001-007 and the RLS validation suite have passed
+-- Apply only after migrations 001-009 and the RLS validation suite have passed
 -- in a disposable development database. Execute as the database/schema owner.
 -- Create scopx_runtime separately with LOGIN, NOSUPERUSER, NOCREATEDB,
 -- NOCREATEROLE, NOINHERIT. Never grant ownership, BYPASSRLS, or migration rights.
@@ -26,8 +26,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE
   TO scopx_runtime;
 
 -- Authentication: only the columns required by the current repository methods.
--- SELECT is table-level because login resolves a user by normalized email or ID;
--- do not expose this connection string to clients or untrusted services.
+-- Column-level SELECT is sufficient for the current repository queries.
 GRANT SELECT (id, email_normalized, display_name, status, password_hash,
                failed_login_count, lockout_until, last_login_at)
   ON TABLE users TO scopx_runtime;
