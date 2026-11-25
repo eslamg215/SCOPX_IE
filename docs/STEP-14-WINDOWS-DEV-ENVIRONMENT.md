@@ -20,7 +20,7 @@ Provide repeatable, low-risk local setup scripts for a Windows workstation. This
 5. Review `.env`; set a strong local owner password in `POSTGRES_PASSWORD`. The API uses a separate `scopx_runtime` password in `ConnectionStrings__ScopxDb`; never reuse the owner password.
 6. Run `./scripts/windows/Start-DevDatabase.ps1`.
 7. Confirm health with `docker compose ps` and `docker compose logs db`.
-8. Run `./scripts/windows/Prepare-DevRuntimeRole.ps1`. At the psql prompt, type `\\password scopx_runtime`, enter a separate strong password twice, then type `\\q`.
+8. Run `./scripts/windows/Prepare-DevRuntimeRole.ps1`. At the psql prompt, type `\password scopx_runtime`, enter a separate strong password twice, then type `\q`.
 9. Install Python and PostgreSQL client tools (`psql`) if they are not already available. Review the SQL migrations and grant scripts before proceeding.
 10. Run `./scripts/windows/Apply-DevDatabaseSecurity.ps1` and type `APPLY SCOPX DEV SECURITY` only when you intend to apply migrations 001-009, least-privilege grants, and synthetic smoke tests to the disposable `scopx_dev` database.
 11. Update `ConnectionStrings__ScopxDb` in `.env` to use `Username=scopx_runtime` and the separate runtime password. Never share or commit `.env`.
