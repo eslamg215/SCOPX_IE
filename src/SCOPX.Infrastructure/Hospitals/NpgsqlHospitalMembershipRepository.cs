@@ -60,7 +60,7 @@ ORDER BY r.code;";
             var roleCodes = new List<string>();
             await using var roleReader = await roleCommand.ExecuteReaderAsync(cancellationToken);
             while (await roleReader.ReadAsync(cancellationToken)) roleCodes.Add(roleReader.GetString(0));
-            rows.Add(new HospitalMembershipRecord(membership.HospitalId, membership.HospitalName, membership.Status, roleCodes));
+            rows.Add(new HospitalMembershipRecord(membership.HospitalId, membership.HospitalName, membership.Status, membership.MembershipId, roleCodes));
         }
         await tx.CommitAsync(cancellationToken);
         return rows;
@@ -69,13 +69,13 @@ ORDER BY r.code;";
     public async Task<HospitalMembershipRecord?> FindActiveForUserAndHospitalAsync(Guid userId, Guid hospitalId, CancellationToken cancellationToken = default)
     {
         const string sql = @"
-SELECT h.id, h.name, hm.status, COALESCE(array_agg(DISTINCT r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::varchar[]) AS role_codes
+SELECT h.id, h.name, hm.status, hm.id, COALESCE(array_agg(DISTINCT r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::varchar[]) AS role_codes
 FROM public.hospital_memberships hm
 JOIN public.hospitals h ON h.id = hm.hospital_id
 LEFT JOIN public.membership_roles mr ON mr.hospital_id = hm.hospital_id AND mr.membership_id = hm.id
 LEFT JOIN public.roles r ON r.id = mr.role_id AND r.scope = 'hospital'
 WHERE hm.user_id = @user AND hm.hospital_id = @hospital AND hm.status = 'active' AND h.status = 'active'
-GROUP BY h.id, h.name, hm.status
+GROUP BY h.id, h.name, hm.status, hm.id
 LIMIT 1;";
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -87,7 +87,7 @@ LIMIT 1;";
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         HospitalMembershipRecord? record = null;
         if (await reader.ReadAsync(cancellationToken))
-            record = new HospitalMembershipRecord(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetFieldValue<string[]>(3));
+            record = new HospitalMembershipRecord(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetGuid(3), reader.GetFieldValue<string[]>(4));
         await tx.CommitAsync(cancellationToken);
         return record;
     }
