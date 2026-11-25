@@ -18,6 +18,9 @@ foreach ($line in Get-Content -LiteralPath $envFile) {
 if ([string]::IsNullOrWhiteSpace($connectionString)) {
   throw 'ConnectionStrings__ScopxDb is missing from .env. Add the local PostgreSQL connection string without sharing or committing it.'
 }
+if ($connectionString -notmatch '(?i)(^|;)\s*Username\s*=\s*scopx_runtime\s*(;|$)') {
+  throw 'The API must connect as the least-privilege scopx_runtime role, never as the POSTGRES_USER database owner. Run Prepare-DevRuntimeRole.ps1, apply reviewed migrations/grants, then update ConnectionStrings__ScopxDb.'
+}
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
   throw '.NET SDK was not found. Run Preflight.ps1 and install .NET 10 SDK.'
 }
