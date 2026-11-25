@@ -43,7 +43,11 @@ BEGIN
     END LOOP;
 
     IF NOT has_table_privilege(runtime_role, 'public.users', 'SELECT')
-       OR NOT has_table_privilege(runtime_role, 'public.users', 'UPDATE') THEN
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'password_hash', 'UPDATE')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'failed_login_count', 'UPDATE')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'lockout_until', 'UPDATE')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'last_login_at', 'UPDATE')
+       OR NOT has_column_privilege(runtime_role, 'public.users', 'updated_at', 'UPDATE') THEN
         RAISE EXCEPTION 'Runtime role is missing required users privileges';
     END IF;
 
