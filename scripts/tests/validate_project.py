@@ -210,6 +210,15 @@ if audit_hardening.exists():
     check('BEFORE TRUNCATE ON public.audit_events' in ah, 'audit event TRUNCATE is blocked by DB trigger')
     check('pg_column_size(details) <= 8192' in ah, 'audit details payload size is constrained')
 check((ROOT/'docs/STEP-34-SECURITY-AUDIT-HARDENING.md').exists(), 'Step 34 security review and deployment checklist exists')
+audit_writer=infra/'Audit/NpgsqlAuditEventWriter.cs'
+check(audit_writer.exists() and 'INSERT INTO public.audit_events' in audit_writer.read_text(encoding='utf-8'), 'transactional append-only audit writer exists')
+for audit_repo in [
+    infra/'Patients/NpgsqlPatientRepository.cs',
+    infra/'Procedures/NpgsqlProcedureRepository.cs',
+    infra/'Reports/NpgsqlReportRepository.cs',
+    infra/'Media/NpgsqlMediaRepository.cs'
+]:
+    check(audit_repo.exists() and 'NpgsqlAuditEventWriter.WriteAsync' in audit_repo.read_text(encoding='utf-8'), f'audit event writes are integrated into {audit_repo.parent.name} repository')
 
 # Step 35 deployment and licensing scaffold checks
 deploy_doc=ROOT/'docs/STEP-35-DEPLOYMENT-LICENSING.md'
