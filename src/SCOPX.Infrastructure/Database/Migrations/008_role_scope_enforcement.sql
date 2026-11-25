@@ -75,7 +75,7 @@ FOR EACH ROW EXECUTE FUNCTION public.scopx_enforce_platform_role_scope();
 CREATE OR REPLACE FUNCTION public.scopx_prevent_assigned_role_scope_change()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $$
 BEGIN
     IF NEW.scope IS DISTINCT FROM OLD.scope THEN
         IF NEW.scope <> 'hospital' AND EXISTS (
@@ -93,7 +93,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS roles_scope_assignment_guard ON public.roles;
 CREATE TRIGGER roles_scope_assignment_guard
