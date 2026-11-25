@@ -1,0 +1,51 @@
+name: SCOPX build validation
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, "fix/**" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build API and Windows workstation
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore API
+        run: dotnet restore src/SCOPX.Api/SCOPX.Api.csproj
+
+      - name: Build API
+        run: dotnet build src/SCOPX.Api/SCOPX.Api.csproj --no-restore --configuration Release
+
+      - name: Build Windows workstation
+        run: dotnet build src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release
+
+      - name: Verify SQL migration files exist
+        shell: pwsh
+        run: |
+          $required = @(
+            "src/SCOPX.Infrastructure/Database/Migrations/001_identity_tenancy.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/002_patient_procedure_records.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/003_platform_roles_licensing.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/004_tenant_rls_policies.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/005_user_authentication.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/006_user_sessions.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/007_audit_immutability_hardening.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/008_role_scope_enforcement.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/009_hospital_directory_rls.sql"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "Missing migration: $file" }
+          }
+          Write-Host "All required migrations are present."
