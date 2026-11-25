@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS = ROOT / "src" / "SCOPX.Infrastructure" / "Database" / "Migrations"
 parser = argparse.ArgumentParser(description="Apply ordered SCOPX.I.E SQL migrations with checksum ledger.")
 parser.add_argument("--include-rls-draft", action="store_true", help="Include draft RLS migration 004 (manual review/disposable DB only).")
-parser.add_argument("--include-auth-draft", action="store_true", help="Include draft authentication persistence migration 005 (manual review/disposable DB only).")
+parser.add_argument("--include-auth-draft", action="store_true", help="Include draft authentication and session migrations 005-006 (manual review/disposable DB only).")
 parser.add_argument("--include-audit-hardening-draft", action="store_true", help="Include draft audit hardening migration 007 (manual review/disposable DB only).")
 parser.add_argument("--include-tenant-hardening-draft", action="store_true", help="Include tenant hardening migrations 008-009; requires --include-rls-draft and a disposable reviewed DB.")
 args = parser.parse_args()
