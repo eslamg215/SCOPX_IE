@@ -65,7 +65,7 @@ public sealed class WorkstationForm : Form
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             var healthUri = new Uri(baseUri.ToString().TrimEnd('/') + "/health/ready");
             using var response = await client.GetAsync(healthUri);
-            _status.Text = response.IsSuccessStatusCode ? $"API reachable ({(int)response.StatusCode}) — health only" : $"API response: {(int)response.StatusCode}";
+            _status.Text = response.IsSuccessStatusCode ? $"API and database reachable ({(int)response.StatusCode}) — connectivity only" : $"Readiness response: {(int)response.StatusCode}";
             _status.ForeColor = response.IsSuccessStatusCode ? Color.LightGreen : Color.OrangeRed;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
