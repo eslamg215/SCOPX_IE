@@ -9,9 +9,18 @@ ALTER TABLE public.users
     ADD COLUMN IF NOT EXISTS lockout_until timestamptz,
     ADD COLUMN IF NOT EXISTS last_login_at timestamptz;
 
-ALTER TABLE public.users
-    ADD CONSTRAINT ck_users_failed_login_count_nonnegative
-    CHECK (failed_login_count >= 0);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'ck_users_failed_login_count_nonnegative'
+          AND conrelid = 'public.users'::regclass
+    ) THEN
+        ALTER TABLE public.users
+            ADD CONSTRAINT ck_users_failed_login_count_nonnegative
+            CHECK (failed_login_count >= 0);
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS ix_users_lockout_until
     ON public.users(lockout_until)
