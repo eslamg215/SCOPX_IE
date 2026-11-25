@@ -69,4 +69,33 @@ CREATE TRIGGER platform_user_roles_scope_guard
 BEFORE INSERT OR UPDATE OF role_id ON public.platform_user_roles
 FOR EACH ROW EXECUTE FUNCTION public.scopx_enforce_platform_role_scope();
 
+
+CREATE OR REPLACE FUNCTION public.scopx_prevent_assigned_role_scope_change()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+BEGIN
+    IF NEW.scope IS DISTINCT FROM OLD.scope THEN
+        IF NEW.scope <> 'hospital' AND EXISTS (
+            SELECT 1 FROM public.membership_roles WHERE role_id = OLD.id
+        ) THEN
+            RAISE EXCEPTION 'cannot change scope of a role assigned to hospital memberships'
+                USING ERRCODE = '23514';
+        END IF;
+        IF NEW.scope <> 'platform' AND EXISTS (
+            SELECT 1 FROM public.platform_user_roles WHERE role_id = OLD.id
+        ) THEN
+            RAISE EXCEPTION 'cannot change scope of a role assigned to platform users'
+                USING ERRCODE = '23514';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS roles_scope_assignment_guard ON public.roles;
+CREATE TRIGGER roles_scope_assignment_guard
+BEFORE UPDATE OF scope ON public.roles
+FOR EACH ROW EXECUTE FUNCTION public.scopx_prevent_assigned_role_scope_change();
+
 COMMIT;
