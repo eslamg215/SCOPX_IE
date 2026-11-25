@@ -31,6 +31,14 @@ jobs:
       - name: Build Windows workstation
         run: dotnet build src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release
 
+      - name: Install Python for structural checks
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Run offline structural checks
+        run: python scripts/tests/validate_project.py
+
       - name: Verify SQL migration files exist
         shell: pwsh
         run: |
