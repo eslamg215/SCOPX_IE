@@ -251,6 +251,7 @@ check('ConnectionStrings__ScopxDb=' in env_example, 'environment example include
 check('Username=scopx_runtime' in env_example, 'API connection string template uses the least-privilege runtime role')
 if api_launcher.exists():
     check('scopx_runtime' in launch_text and 'must connect as' in launch_text, 'API launcher refuses database-owner credentials')
+    check('runtimePassword -eq $ownerPassword' in launch_text, 'API launcher rejects reuse of database-owner password')
 runtime_setup=ROOT/'scripts/windows/Prepare-DevRuntimeRole.ps1'
 check(runtime_setup.exists(), 'interactive least-privilege runtime role setup script exists')
 if runtime_setup.exists():
