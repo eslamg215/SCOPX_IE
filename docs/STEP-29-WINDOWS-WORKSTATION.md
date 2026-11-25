@@ -3,7 +3,7 @@
 ## Added
 - New `src/SCOPX.Workstation` WinForms desktop project targeting `net10.0-windows`.
 - Dark navy/cyan SCOPX identity and four feature placeholders (Patients, Procedures, Reports, Media).
-- Configurable API base URL field and a health-only connection check against `/health`.
+- Configurable API base URL field and a database connectivity check against `/health/ready` (`SELECT 1` only; not schema or clinical readiness).
 - Explicit non-clinical / development warning.
 
 ## Not implemented yet
@@ -16,4 +16,4 @@
 cd src/SCOPX.Workstation
 dotnet run
 ```
-The API must be running separately for the health check. This project has not been compiled in this environment; only structural checks can be performed here. Do not use real patient data.
+The API must be running separately for the connectivity check. Start it with `scripts/windows/Start-DevApi.ps1` after the local PostgreSQL container is healthy. GitHub Actions compiles the API and workstation projects, but this does not validate the UI end-to-end or clinical workflows. Do not use real patient data.
