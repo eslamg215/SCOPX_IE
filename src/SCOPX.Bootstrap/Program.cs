@@ -31,7 +31,8 @@ if (hospitalName.Length is < 2 or > 200 || displayName.Length is < 2 or > 160 ||
     Console.Error.WriteLine("Hospital, display name, or email length is invalid.");
     return 2;
 }
-try { _ = new MailAddress(emailInput); }
+string normalizedEmail;
+try { normalizedEmail = new MailAddress(emailInput).Address.ToUpperInvariant(); }
 catch { Console.Error.WriteLine("Enter a valid email address."); return 2; }
 
 var password = ReadHidden("Create administrator password: ");
@@ -85,7 +86,7 @@ INSERT INTO public.users (id, email_normalized, display_name, status, password_h
 VALUES (@id, @email, @display, 'active', @hash);", connection, transaction))
 {
     userCommand.Parameters.AddWithValue("id", NpgsqlDbType.Uuid, userId);
-    userCommand.Parameters.AddWithValue("email", NpgsqlDbType.Varchar, emailInput.ToUpperInvariant());
+    userCommand.Parameters.AddWithValue("email", NpgsqlDbType.Varchar, normalizedEmail);
     userCommand.Parameters.AddWithValue("display", NpgsqlDbType.Varchar, displayName);
     userCommand.Parameters.AddWithValue("hash", NpgsqlDbType.Text, passwordHash);
     await userCommand.ExecuteNonQueryAsync();
@@ -124,11 +125,12 @@ WHERE code = 'hospital_admin' AND scope = 'hospital';", connection, transaction)
 
 await using (var auditCommand = new NpgsqlCommand(@"
 INSERT INTO public.audit_events (hospital_id, actor_user_id, event_type, target_type, target_id, details)
-VALUES (@hospital, @actor, 'bootstrap.admin_created', 'user', @target, '{\"source\":\"dev_bootstrap\"}'::jsonb);", connection, transaction))
+VALUES (@hospital, @actor, 'bootstrap.admin_created', 'user', @target, @details);", connection, transaction))
 {
     auditCommand.Parameters.AddWithValue("hospital", NpgsqlDbType.Uuid, hospitalId);
     auditCommand.Parameters.AddWithValue("actor", NpgsqlDbType.Uuid, userId);
     auditCommand.Parameters.AddWithValue("target", NpgsqlDbType.Text, userId.ToString("D"));
+    auditCommand.Parameters.AddWithValue("details", NpgsqlDbType.Jsonb, "{\"source\":\"dev_bootstrap\"}");
     await auditCommand.ExecuteNonQueryAsync();
 }
 
