@@ -28,12 +28,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE
 -- Authentication: only the columns required by the current repository methods.
 -- SELECT is table-level because login resolves a user by normalized email or ID;
 -- do not expose this connection string to clients or untrusted services.
-GRANT SELECT ON TABLE users TO scopx_runtime;
+GRANT SELECT (id, email_normalized, display_name, status, password_hash,
+               failed_login_count, lockout_until, last_login_at)
+  ON TABLE users TO scopx_runtime;
 GRANT UPDATE (password_hash, failed_login_count, lockout_until, last_login_at, updated_at)
   ON TABLE users TO scopx_runtime;
 
 -- Opaque session hashes only; raw bearer tokens must never be persisted.
-GRANT SELECT, INSERT ON TABLE user_sessions TO scopx_runtime;
+GRANT SELECT (id, user_id, token_hash, expires_at, revoked_at)
+  ON TABLE user_sessions TO scopx_runtime;
+GRANT INSERT ON TABLE user_sessions TO scopx_runtime;
 GRANT UPDATE (revoked_at) ON TABLE user_sessions TO scopx_runtime;
 
 -- Membership discovery occurs before tenant context is selected. The repository
