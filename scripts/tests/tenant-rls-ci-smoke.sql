@@ -90,7 +90,7 @@ BEGIN
     VALUES ('00000000-0000-0000-0000-0000000000b1',
             '00000000-0000-0000-0000-0000000000a1',
             'ci.runtime_audit', 'test', 'runtime-write', '{"synthetic":true}'::jsonb);
-END $;
+END $$;
 
 SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a2', true);
 SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b2', true);
