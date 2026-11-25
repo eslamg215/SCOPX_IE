@@ -10,6 +10,7 @@ Provide repeatable, low-risk local setup scripts for a Windows workstation. This
 - `scripts/windows/Backup-DevDatabase.ps1`: writes a local development SQL dump.
 - `scripts/windows/Prepare-DevRuntimeRole.ps1`: creates/verifies the least-privilege runtime login and sets its password interactively.
 - `scripts/windows/Apply-DevDatabaseSecurity.ps1`: applies reviewed draft migrations, grants, and synthetic security smoke tests only after an explicit confirmation.
+- `scripts/windows/Bootstrap-DevAdmin.ps1`: securely creates the first development hospital administrator on an empty dev database.
 - `scripts/windows/Start-DevApi.ps1`: reads `ConnectionStrings__ScopxDb` from the ignored local `.env` file and launches the API without printing the secret.
 
 ## User setup sequence
@@ -24,7 +25,8 @@ Provide repeatable, low-risk local setup scripts for a Windows workstation. This
 9. Install Python and PostgreSQL client tools (`psql`) if they are not already available. Review the SQL migrations and grant scripts before proceeding.
 10. Run `./scripts/windows/Apply-DevDatabaseSecurity.ps1` and type `APPLY SCOPX DEV SECURITY` only when you intend to apply migrations 001-009, least-privilege grants, and synthetic smoke tests to the disposable `scopx_dev` database.
 11. Update `ConnectionStrings__ScopxDb` in `.env` to use `Username=scopx_runtime` and the separate runtime password. Never share or commit `.env`.
-12. Run `./scripts/windows/Start-DevApi.ps1` in a separate PowerShell window to start the API. It refuses to launch with the database-owner account and does not apply migrations automatically.
+12. Run `./scripts/windows/Bootstrap-DevAdmin.ps1` and enter synthetic hospital/admin details. The password prompt is hidden. It only works when users and hospitals are empty, and grants the first account `hospital_admin` only.
+13. Run `./scripts/windows/Start-DevApi.ps1` in a separate PowerShell window to start the API. It refuses to launch with the database-owner account and does not apply migrations automatically.
 
 ## Backup
 Run `./scripts/windows/Backup-DevDatabase.ps1`. Backup output defaults to `./backups`; keep backups out of source control. This script is a development convenience, not a validated production backup solution. Test restore procedures before relying on backups.
