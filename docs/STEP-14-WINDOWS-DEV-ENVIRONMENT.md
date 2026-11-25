@@ -15,7 +15,7 @@ Provide repeatable, low-risk local setup scripts for a Windows workstation. This
 2. Open PowerShell in the project folder.
 3. If execution policy blocks scripts, use a one-session policy only after reviewing the script: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
 4. Run `./scripts/windows/Preflight.ps1`.
-5. Review `.env`; replace the local development password. Do not reuse a real password.
+5. Review `.env`; replace the local development password in both `POSTGRES_PASSWORD` and `ConnectionStrings__ScopxDb` so they match. Do not reuse a real password.
 6. Run `./scripts/windows/Start-DevDatabase.ps1`.
 7. Confirm health with `docker compose ps` and `docker compose logs db`.
 8. Add `ConnectionStrings__ScopxDb=...` to the local `.env` file if it is not already present; never share or commit this value.
