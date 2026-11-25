@@ -43,8 +43,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not create the runtime role.' }
 
 Write-Host ''
 Write-Host 'Set a separate strong password for scopx_runtime.' -ForegroundColor Yellow
-Write-Host 'At the PostgreSQL prompt, type: password scopx_runtime'
-Write-Host 'Enter the new password twice, then type: q'
+Write-Host 'At the PostgreSQL prompt, type: \\password scopx_runtime'
+Write-Host 'Enter the new password twice, then type: \\q'
 Write-Host 'The password is entered interactively and is not printed by this script.'
 docker compose exec db psql -U $dbOwner -d $dbName
 if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL password setup did not complete.' }
