@@ -25,6 +25,7 @@ program=(API/'Program.cs').read_text(encoding='utf-8')
 check('UseExceptionHandler' in program, 'API has generic exception handler')
 check('AddRateLimiter' in program and 'PermitLimit = 120' in program, 'rate limiting configured in API scaffold')
 check('X-Correlation-ID' in program and 'Content-Security-Policy' in program, 'request correlation and security headers present')
+check('"/health/ready"' in program and 'SELECT 1' in program, 'API readiness endpoint checks configured database connectivity')
 security=API/'Security'
 check((security/'PasswordHashService.cs').exists(), 'password hashing service file exists')
 check((security/'PasswordPolicy.cs').exists(), 'password policy file exists')
@@ -151,7 +152,7 @@ wf=workstation/'WorkstationForm.cs'
 check(wf.exists(), 'workstation shell form source exists')
 if wf.exists():
     wtext=wf.read_text(encoding='utf-8')
-    check('CheckApi' in wtext and '/health' in wtext, 'workstation shell provides API health-only check')
+    check('CheckApi' in wtext and '/health/ready' in wtext and 'connectivity only' in wtext, 'workstation shell checks database connectivity without claiming clinical readiness')
     check('NOT FOR CLINICAL USE' in wtext and 'not connected' in wtext, 'workstation clearly marks clinical warning and placeholder features')
 wsproj=(workstation/'SCOPX.Workstation.csproj').read_text(encoding='utf-8')
 check('net10.0-windows' in wsproj and 'UseWindowsForms' in wsproj, 'workstation is configured as Windows desktop WinForms app')
