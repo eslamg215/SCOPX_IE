@@ -34,7 +34,7 @@ public static class AuthEndpoints
             var expiry = DateTimeOffset.UtcNow.Add(SessionLifetime);
             await sessions.CreateAsync(user.Id, SessionToken.Hash(token), expiry, ct);
             return Results.Ok(new { access_token = token, token_type = "Bearer", expires_at = expiry });
-        });
+        }).RequireRateLimiting("login");
         group.MapGet("/me", async (HttpContext context, IUserRepository users, ISessionRepository sessions, CancellationToken ct) =>
         {
             var token = AuthHeaderReader.ReadBearer(context.Request.Headers.Authorization.ToString());
