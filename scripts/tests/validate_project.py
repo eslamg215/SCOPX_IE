@@ -238,6 +238,12 @@ if license_scaffold.exists():
     ls=license_scaffold.read_text(encoding='utf-8')
     check('DisabledLicenseProvider' in ls and 'IsValid => false' in ls, 'licensing scaffold fails closed and does not claim validation')
 check('Step 35' in (ROOT/'README.md').read_text(encoding='utf-8'), 'README records Step 35 scope and production limitations')
+api_launcher=ROOT/'scripts/windows/Start-DevApi.ps1'
+check(api_launcher.exists(), 'safe local API launcher exists')
+if api_launcher.exists():
+    launch_text=api_launcher.read_text(encoding='utf-8')
+    check('ConnectionStrings__ScopxDb' in launch_text and 'dotnet run --project' in launch_text, 'API launcher loads the local connection string and starts the API')
+    check('No migrations are run automatically' in launch_text and 'never print the secret' in launch_text, 'API launcher avoids printing secrets and does not auto-apply migrations')
 
 # Membership repository tenant-context repair checks
 membership_repo=hosp/'NpgsqlHospitalMembershipRepository.cs'
