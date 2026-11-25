@@ -171,7 +171,7 @@ The runtime grant template is scripts/database/Grant-RuntimePrivileges.sql; the 
 
 The API exposes /health for liveness and /health/ready for a database SELECT 1 connectivity probe; the Windows workstation uses the readiness endpoint but does not claim schema or clinical readiness.
 
-Windows API startup is available through scripts/windows/Start-DevApi.ps1; it reads ConnectionStrings__ScopxDb from the ignored local .env file, does not print the secret, and never auto-applies migrations.
+Windows API startup is available through scripts/windows/Start-DevApi.ps1; it reads ConnectionStrings__ScopxDb from the ignored local .env file, does not print the secret, and never auto-applies migrations. It refuses to start if the API connection string uses the database-owner account; configure the separate least-privilege scopx_runtime role first.
 
 GitHub Actions now builds the API and Windows workstation on pushes and pull requests. A queued or running workflow is not a passing build; check the Actions result before treating compilation as verified. No database migration, privilege script, tenant-isolation integration test, clinical workflow test, or clinical validation is claimed complete by this change.
 
