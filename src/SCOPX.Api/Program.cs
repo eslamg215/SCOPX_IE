@@ -11,8 +11,9 @@ using Microsoft.AspNetCore.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 60 * 1024 * 1024);
 
-// Defensive defaults for the development API scaffold. Authentication and clinical
-// storage are deliberately not wired; this service must not receive real PHI yet.
+// Development-only API scaffold. Authentication and hospital membership lookup
+// are enabled when configured; clinical and platform routes remain deliberately disabled.
+ // Never connect this scaffold to real patient data.
 builder.Services.AddHealthChecks();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = 60 * 1024 * 1024);
 builder.Services.AddScoped<IPasswordHasher<AuthUser>, PasswordHasher<AuthUser>>();
