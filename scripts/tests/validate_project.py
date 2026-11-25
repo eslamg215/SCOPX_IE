@@ -99,6 +99,7 @@ if (procedures/'NpgsqlProcedureRepository.cs').exists():
     check("set_config('scopx.hospital_id'" in proc and 'BeginTransactionAsync' in proc, 'procedure repository applies transaction-local tenant context')
     check("status='scheduled'" in proc and "status='in_progress'" in proc and "status='completed'" in proc, 'procedure transitions are guarded by current status')
     check('hospital_id=@h' in proc and 'Parameters.AddWithValue' in proc, 'procedure queries use tenant filter and parameterized SQL')
+    check('performed_by_membership_id=@membership' in proc, 'procedure completion records the performing hospital membership')
 procedure_api=API/'Procedures/ProcedureEndpoints.cs'
 check(procedure_api.exists(), 'procedure workflow endpoints file exists')
 if procedure_api.exists():
@@ -116,6 +117,7 @@ if (reports/'NpgsqlReportRepository.cs').exists():
     check("set_config('scopx.hospital_id'" in rpt and 'BeginTransactionAsync' in rpt, 'report repository sets transaction-local tenant context')
     check("status='draft'" in rpt and "status='review'" in rpt and 'signed_at IS NULL' in rpt, 'report edit and review transitions are guarded')
     check('Parameters.AddWithValue' in rpt and 'hospital_id=@h' in rpt, 'report repository uses parameterized tenant-scoped queries')
+    check('created_by_membership_id' in rpt, 'report drafts record the creating hospital membership')
 report_api=API/'Reports/ReportEndpoints.cs'
 check(report_api.exists(), 'report workflow endpoints file exists')
 if report_api.exists():
@@ -242,6 +244,7 @@ if membership_repo.exists():
     check("set_config('scopx.user_id', @user, true)" in mrepo, 'membership repository sets trusted transaction-local user context for RLS discovery')
     check("set_config('scopx.hospital_id', @hospital, true)" in mrepo, 'membership role lookup sets transaction-local tenant context before RLS-protected joins')
     check('MembershipId' in mrepo and 'rolesSql' in mrepo, 'multi-hospital membership lookup retrieves roles under per-hospital RLS context')
+    check('new HospitalMembershipRecord' in mrepo and 'reader.GetGuid(3)' in mrepo, 'hospital context returns the validated membership ID for clinical provenance')
 
 # Step 39 responsive PWA client checks
 web=ROOT/'src/SCOPX.Web'
