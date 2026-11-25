@@ -4,7 +4,7 @@
 Provide repeatable, low-risk local setup scripts for a Windows workstation. This does not install dependencies automatically and does not make the app clinically usable.
 
 ## Files
-- `scripts/windows/Preflight.ps1`: checks for Docker, .NET, Git, and Docker Engine readiness.
+- `scripts/windows/Preflight.ps1`: checks for Docker, .NET 10, Git, Python, PostgreSQL client (`psql`), and Docker Engine readiness.
 - `scripts/windows/Start-DevDatabase.ps1`: creates `.env` from the example when absent, starts PostgreSQL, and waits for its health check.
 - `scripts/windows/Stop-DevDatabase.ps1`: stops the DB container without deleting its persistent volume.
 - `scripts/windows/Backup-DevDatabase.ps1`: writes a local development SQL dump.
