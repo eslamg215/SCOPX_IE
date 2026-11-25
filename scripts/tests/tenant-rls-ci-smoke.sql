@@ -85,7 +85,12 @@ BEGIN
     EXCEPTION WHEN insufficient_privilege THEN
         NULL;
     END;
-END $$;
+
+    INSERT INTO public.audit_events (hospital_id, actor_user_id, event_type, target_type, target_id, details)
+    VALUES ('00000000-0000-0000-0000-0000000000b1',
+            '00000000-0000-0000-0000-0000000000a1',
+            'ci.runtime_audit', 'test', 'runtime-write', '{"synthetic":true}'::jsonb);
+END $;
 
 SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a2', true);
 SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b2', true);
