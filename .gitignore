@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+bin/
+obj/
+.vs/
+node_modules/
+dist/
+coverage/
+*.user
+*.suo
+secrets.json
