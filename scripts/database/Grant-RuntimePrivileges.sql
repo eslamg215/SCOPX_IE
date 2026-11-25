@@ -25,6 +25,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE
   ON TABLE patients, procedures, media_assets, procedure_reports
   TO scopx_runtime;
 
+-- Reset previous grants on identity tables before applying the narrow grant set.
+REVOKE ALL ON TABLE users, user_sessions FROM scopx_runtime;
+
 -- Authentication: only the columns required by the current repository methods.
 -- Column-level SELECT is sufficient for the current repository queries.
 GRANT SELECT (id, email_normalized, display_name, status, password_hash,
