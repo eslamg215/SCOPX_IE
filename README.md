@@ -169,6 +169,8 @@ Database migration execution is opt-in for security-sensitive drafts:
 
 The runtime grant template is scripts/database/Grant-RuntimePrivileges.sql; the configuration preflight is scripts/database/Validate-RuntimePrivileges.sql. Do not run the grant script until migrations 001-009 have been reviewed and the RLS/runtime-role checks have been performed on a disposable database. Never use the database owner or a BYPASSRLS role as the application runtime role.
 
+Windows API startup is available through scripts/windows/Start-DevApi.ps1; it reads ConnectionStrings__ScopxDb from the ignored local .env file, does not print the secret, and never auto-applies migrations.
+
 GitHub Actions now builds the API and Windows workstation on pushes and pull requests. A queued or running workflow is not a passing build; check the Actions result before treating compilation as verified. No database migration, privilege script, tenant-isolation integration test, clinical workflow test, or clinical validation is claimed complete by this change.
 
 **Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
