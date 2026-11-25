@@ -17,6 +17,11 @@ CREATE TRIGGER audit_events_reject_update_delete
 BEFORE UPDATE OR DELETE ON public.audit_events
 FOR EACH ROW EXECUTE FUNCTION public.scopx_reject_audit_mutation();
 
+DROP TRIGGER IF EXISTS audit_events_reject_truncate ON public.audit_events;
+CREATE TRIGGER audit_events_reject_truncate
+BEFORE TRUNCATE ON public.audit_events
+FOR EACH STATEMENT EXECUTE FUNCTION public.scopx_reject_audit_mutation();
+
 -- Bound the details payload to reduce accidental oversized audit records.
 DO $$
 BEGIN
