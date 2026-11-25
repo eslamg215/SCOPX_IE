@@ -6,6 +6,5 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SCOPX.Infrastructure/SCOPX.Infrastructure.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.0" />
   </ItemGroup>
 </Project>
