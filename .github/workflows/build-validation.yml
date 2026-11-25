@@ -28,6 +28,9 @@ jobs:
       - name: Build API
         run: dotnet build src/SCOPX.Api/SCOPX.Api.csproj --no-restore --configuration Release
 
+      - name: Build development bootstrap tool
+        run: dotnet build src/SCOPX.Bootstrap/SCOPX.Bootstrap.csproj --configuration Release
+
       - name: Build Windows workstation
         run: dotnet build src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release
 
