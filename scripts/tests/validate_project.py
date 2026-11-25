@@ -248,6 +248,17 @@ if api_launcher.exists():
     check('docker inspect' in launch_text and "healthy" in launch_text, 'API launcher requires a healthy local PostgreSQL container')
 env_example=(ROOT/'.env.example').read_text(encoding='utf-8')
 check('ConnectionStrings__ScopxDb=' in env_example, 'environment example includes a local API connection string template')
+bootstrap_project=ROOT/'src/SCOPX.Bootstrap/SCOPX.Bootstrap.csproj'
+bootstrap_program=ROOT/'src/SCOPX.Bootstrap/Program.cs'
+bootstrap_launcher=ROOT/'scripts/windows/Bootstrap-DevAdmin.ps1'
+check(bootstrap_project.exists() and bootstrap_program.exists() and bootstrap_launcher.exists(), 'development first-admin bootstrap tool and launcher exist')
+if bootstrap_program.exists():
+    bootstrap_text=bootstrap_program.read_text(encoding='utf-8')
+    check('PasswordHasher<AuthUser>' in bootstrap_text and 'ReadHidden' in bootstrap_text, 'first-admin bootstrap hashes a hidden password with the same ASP.NET hasher')
+    check('database != "scopx_dev"' in bootstrap_text and "code = 'hospital_admin'" in bootstrap_text, 'first-admin bootstrap is dev-database-only and grants only hospital_admin')
+if bootstrap_launcher.exists():
+    bootstrap_launch_text=bootstrap_launcher.read_text(encoding='utf-8')
+    check('scopx_dev' in bootstrap_launch_text and '--dev-only' in bootstrap_launch_text, 'PowerShell bootstrap launcher is restricted to the dev database')
 check('Username=scopx_runtime' in env_example, 'API connection string template uses the least-privilege runtime role')
 if api_launcher.exists():
     check('scopx_runtime' in launch_text and 'must connect as' in launch_text, 'API launcher refuses database-owner credentials')
