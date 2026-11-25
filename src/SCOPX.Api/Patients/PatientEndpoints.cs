@@ -62,7 +62,7 @@ public static class PatientEndpoints
         return new HospitalAuthContext(user.Id, hospitalId, membership.RoleCodes.ToArray());
     }
     private static bool CanRead(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor", "nurse", "reception", "auditor", "endoscopy_technician" }.Contains(r, StringComparer.OrdinalIgnoreCase));
-    private static bool CanReadDetails(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor", "nurse", "auditor" }.Contains(r, StringComparer.OrdinalIgnoreCase));
+    private static bool CanReadDetails(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor", "nurse" }.Contains(r, StringComparer.OrdinalIgnoreCase));
     private static bool CanCreate(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor", "nurse", "reception" }.Contains(r, StringComparer.OrdinalIgnoreCase));
     private static bool CanUpdate(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor" }.Contains(r, StringComparer.OrdinalIgnoreCase));
     private static string? ValidateCreate(PatientCreateRequest x)
