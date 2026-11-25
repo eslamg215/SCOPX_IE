@@ -8,6 +8,8 @@ Provide repeatable, low-risk local setup scripts for a Windows workstation. This
 - `scripts/windows/Start-DevDatabase.ps1`: creates `.env` from the example when absent, starts PostgreSQL, and waits for its health check.
 - `scripts/windows/Stop-DevDatabase.ps1`: stops the DB container without deleting its persistent volume.
 - `scripts/windows/Backup-DevDatabase.ps1`: writes a local development SQL dump.
+- `scripts/windows/Prepare-DevRuntimeRole.ps1`: creates/verifies the least-privilege runtime login and sets its password interactively.
+- `scripts/windows/Apply-DevDatabaseSecurity.ps1`: applies reviewed draft migrations, grants, and synthetic security smoke tests only after an explicit confirmation.
 - `scripts/windows/Start-DevApi.ps1`: reads `ConnectionStrings__ScopxDb` from the ignored local `.env` file and launches the API without printing the secret.
 
 ## User setup sequence
@@ -33,4 +35,4 @@ Run `./scripts/windows/Backup-DevDatabase.ps1`. Backup output defaults to `./bac
 - Do not expose PostgreSQL to public networks.
 - The compose port is bound to loopback.
 - Database migrations and runtime grants are deliberately not auto-applied by these scripts; they remain opt-in and must be reviewed, especially RLS and tenant hardening.
-- Do not treat the preflight as a build/test check. The .NET build and integration tests remain unrun until the SDK and environment are available.
+- The .NET API and Windows workstation builds plus PostgreSQL migration/RLS smoke tests are run in GitHub Actions. Local scripts still require review and explicit execution; CI success is not clinical validation.
