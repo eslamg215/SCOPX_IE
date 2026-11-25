@@ -37,7 +37,7 @@ if ($LASTEXITCODE -ne 0 -or -not ($sdks -match '^10\.')) {
   throw '.NET 10 SDK is required. Install it before starting the API.'
 }
 
-# Set the connection string only in this PowerShell process; never print it.
+# Set the connection string only in this PowerShell process; never print the secret.
 $env:ConnectionStrings__ScopxDb = $connectionString
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
 
