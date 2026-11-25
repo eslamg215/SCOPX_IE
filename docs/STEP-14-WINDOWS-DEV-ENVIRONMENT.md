@@ -15,11 +15,14 @@ Provide repeatable, low-risk local setup scripts for a Windows workstation. This
 2. Open PowerShell in the project folder.
 3. If execution policy blocks scripts, use a one-session policy only after reviewing the script: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
 4. Run `./scripts/windows/Preflight.ps1`.
-5. Review `.env`; replace the local development password in both `POSTGRES_PASSWORD` and `ConnectionStrings__ScopxDb` so they match. Do not reuse a real password.
+5. Review `.env`; set a strong local owner password in `POSTGRES_PASSWORD`. The API uses a separate `scopx_runtime` password in `ConnectionStrings__ScopxDb`; never reuse the owner password.
 6. Run `./scripts/windows/Start-DevDatabase.ps1`.
 7. Confirm health with `docker compose ps` and `docker compose logs db`.
-8. Add `ConnectionStrings__ScopxDb=...` to the local `.env` file if it is not already present; never share or commit this value.
-9. Run `./scripts/windows/Start-DevApi.ps1` in a separate PowerShell window to start the API. It does not apply migrations automatically.
+8. Run `./scripts/windows/Prepare-DevRuntimeRole.ps1`. At the psql prompt, type `\\password scopx_runtime`, enter a separate strong password twice, then type `\\q`.
+9. Install Python and PostgreSQL client tools (`psql`) if they are not already available. Review the SQL migrations and grant scripts before proceeding.
+10. Run `./scripts/windows/Apply-DevDatabaseSecurity.ps1` and type `APPLY SCOPX DEV SECURITY` only when you intend to apply migrations 001-009, least-privilege grants, and synthetic smoke tests to the disposable `scopx_dev` database.
+11. Update `ConnectionStrings__ScopxDb` in `.env` to use `Username=scopx_runtime` and the separate runtime password. Never share or commit `.env`.
+12. Run `./scripts/windows/Start-DevApi.ps1` in a separate PowerShell window to start the API. It refuses to launch with the database-owner account and does not apply migrations automatically.
 
 ## Backup
 Run `./scripts/windows/Backup-DevDatabase.ps1`. Backup output defaults to `./backups`; keep backups out of source control. This script is a development convenience, not a validated production backup solution. Test restore procedures before relying on backups.
