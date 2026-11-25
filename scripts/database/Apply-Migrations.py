@@ -9,7 +9,10 @@ parser = argparse.ArgumentParser(description="Apply ordered SCOPX.I.E SQL migrat
 parser.add_argument("--include-rls-draft", action="store_true", help="Include draft RLS migration 004 (manual review/disposable DB only).")
 parser.add_argument("--include-auth-draft", action="store_true", help="Include draft authentication persistence migration 005 (manual review/disposable DB only).")
 parser.add_argument("--include-audit-hardening-draft", action="store_true", help="Include draft audit hardening migration 007 (manual review/disposable DB only).")
+parser.add_argument("--include-tenant-hardening-draft", action="store_true", help="Include tenant hardening migrations 008-009; requires --include-rls-draft and a disposable reviewed DB.")
 args = parser.parse_args()
+if args.include_tenant_hardening_draft and not args.include_rls_draft:
+    sys.exit("ERROR: --include-tenant-hardening-draft requires --include-rls-draft.")
 if not os.environ.get("PGDATABASE"):
     sys.exit("ERROR: Set PGDATABASE (and PGHOST/PGPORT/PGUSER/PGPASSWORD as needed) first.")
 if not shutil.which("psql"):
@@ -21,9 +24,11 @@ if not files:
 if not args.include_rls_draft:
     files = [f for f in files if f.name != "004_tenant_rls_policies.sql"]
 if not args.include_auth_draft:
-    files = [f for f in files if f.name != "005_user_authentication.sql"]
+    files = [f for f in files if f.name not in {"005_user_authentication.sql", "006_user_sessions.sql"}]
 if not args.include_audit_hardening_draft:
     files = [f for f in files if f.name != "007_audit_immutability_hardening.sql"]
+if not args.include_tenant_hardening_draft:
+    files = [f for f in files if f.name not in {"008_role_scope_enforcement.sql", "009_hospital_directory_rls.sql"}]
 
 psql_base = ["psql", "--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--dbname", os.environ["PGDATABASE"]]
 def run_sql(sql: str):
