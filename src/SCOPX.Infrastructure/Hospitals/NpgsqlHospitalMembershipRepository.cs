@@ -88,6 +88,7 @@ LIMIT 1;";
         HospitalMembershipRecord? record = null;
         if (await reader.ReadAsync(cancellationToken))
             record = new HospitalMembershipRecord(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetGuid(3), reader.GetFieldValue<string[]>(4));
+        await reader.CloseAsync();
         await tx.CommitAsync(cancellationToken);
         return record;
     }
