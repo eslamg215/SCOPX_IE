@@ -42,6 +42,11 @@ BEGIN
         END IF;
     END LOOP;
 
+    IF has_table_privilege(runtime_role, 'public.users', 'SELECT')
+       OR has_table_privilege(runtime_role, 'public.user_sessions', 'SELECT') THEN
+        RAISE EXCEPTION 'Runtime role has broader table-level identity read access than intended';
+    END IF;
+
     IF NOT has_column_privilege(runtime_role, 'public.users', 'id', 'SELECT')
        OR NOT has_column_privilege(runtime_role, 'public.users', 'email_normalized', 'SELECT')
        OR NOT has_column_privilege(runtime_role, 'public.users', 'display_name', 'SELECT')
