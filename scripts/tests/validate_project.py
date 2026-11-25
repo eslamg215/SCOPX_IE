@@ -244,6 +244,9 @@ if api_launcher.exists():
     launch_text=api_launcher.read_text(encoding='utf-8')
     check('ConnectionStrings__ScopxDb' in launch_text and 'dotnet run --project' in launch_text, 'API launcher loads the local connection string and starts the API')
     check('No migrations are run automatically' in launch_text and 'never print the secret' in launch_text, 'API launcher avoids printing secrets and does not auto-apply migrations')
+    check('docker inspect' in launch_text and "healthy" in launch_text, 'API launcher requires a healthy local PostgreSQL container')
+env_example=(ROOT/'.env.example').read_text(encoding='utf-8')
+check('ConnectionStrings__ScopxDb=' in env_example, 'environment example includes a local API connection string template')
 
 # Membership repository tenant-context repair checks
 membership_repo=hosp/'NpgsqlHospitalMembershipRepository.cs'
