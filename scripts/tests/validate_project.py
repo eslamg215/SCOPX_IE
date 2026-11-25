@@ -18,7 +18,8 @@ runner=ROOT/'scripts/database/Apply-Migrations.py'
 text=runner.read_text(encoding='utf-8')
 check('--single-transaction' in text, 'migration runner wraps each migration in transaction')
 check('sha256' in text and 'checksum changed' in text.lower(), 'migration runner checks historical checksums')
-check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text, 'draft migrations require explicit flags')
+check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text, 'security-sensitive migration groups require explicit flags')
+check('"006_user_sessions.sql"' in text and '"008_role_scope_enforcement.sql"' in text and '"009_hospital_directory_rls.sql"' in text, 'session and tenant-hardening migrations are excluded by default')
 check('007_audit_immutability_hardening.sql' in text and 'include_audit_hardening_draft' in text, 'audit hardening draft is excluded by default unless explicitly opted in')
 program=(API/'Program.cs').read_text(encoding='utf-8')
 check('UseExceptionHandler' in program, 'API has generic exception handler')
@@ -88,7 +89,7 @@ if pe.exists():
     check('FindActiveForUserAndHospitalAsync' in ptext and 'AuthHeaderReader.ReadBearer' in ptext, 'patient routes require active session and membership validation')
     check('hospital_admin' in ptext and 'doctor' in ptext and 'auditor' in ptext, 'patient route role restrictions are explicit')
     check('ValidateCreate' in ptext and 'ValidateUpdate' in ptext, 'patient create and update input validation present')
-check('MapPatientEndpoints' in program and 'IPatientRepository' in program, 'patient API repository and routes are registered')
+check('MapPatientEndpoints' not in program and 'IPatientRepository' not in program, 'clinical patient routes remain disabled pending audit integration')
 
 # Step 26 procedure workflow API checks
 procedures=infra/'Procedures'
@@ -105,7 +106,7 @@ if procedure_api.exists():
     check('/patient/{patientId:guid}' in pt and '/start' in pt and '/complete' in pt, 'procedure list, start, and completion routes are defined')
     check('FindActiveForUserAndHospitalAsync' in pt and 'AuthHeaderReader.ReadBearer' in pt, 'procedure routes validate active session and hospital membership')
     check('invalid_procedure_transition' in pt and 'CanCreate' in pt, 'procedure workflow transitions and role policy are checked')
-check('MapProcedureEndpoints' in program and 'IProcedureRepository' in program, 'procedure API and repository are registered')
+check('MapProcedureEndpoints' not in program and 'IProcedureRepository' not in program, 'clinical procedure routes remain disabled pending audit integration')
 
 # Step 27 report draft/review workflow checks
 reports=infra/'Reports'
@@ -121,7 +122,7 @@ if report_api.exists():
     rt=report_api.read_text(encoding='utf-8')
     check('/procedure/{procedureId:guid}' in rt and 'submit-review' in rt and 'MapReportEndpoints' in rt, 'report list, draft, and review routes are present')
     check('FindActiveForUserAndHospitalAsync' in rt and 'AuthHeaderReader.ReadBearer' in rt, 'report API validates session and hospital membership')
-check('MapReportEndpoints' in program and 'IReportRepository' in program, 'report API repository and routes are registered')
+check('MapReportEndpoints' not in program and 'IReportRepository' not in program, 'clinical report routes remain disabled pending audit integration')
 
 # Step 28 media storage scaffold checks
 media=infra/'Media'
@@ -137,7 +138,7 @@ if media_api.exists():
     check('/upload/{procedureId:guid}' in ma and '/download' in ma and '/procedure/{procedureId:guid}' in ma, 'media upload, download, and list endpoints are present')
     check('MaxBytes=50*1024*1024' in ma and 'Allowed.TryGetValue' in ma and 'SHA256.HashDataAsync' in ma, 'media uploads are size-limited, extension-whitelisted and hashed')
     check('Path.GetFullPath' in ma and 'HospitalId:N' in ma, 'media storage keys are generated and full paths are checked')
-check('MapMediaEndpoints' in program and 'IMediaRepository' in program, 'media API and repository are wired in Program')
+check('MapMediaEndpoints' not in program and 'IMediaRepository' not in program, 'media routes remain disabled pending storage security and audit integration')
 
 # Step 29 Windows workstation shell checks
 workstation=ROOT/'src/SCOPX.Workstation'
@@ -160,7 +161,7 @@ if platform_admin.exists():
     check('/overview' in pa and '/hospitals' in pa and '/users' in pa, 'platform admin overview, hospital, and user routes exist')
     check('platform_super_admin' in pa and 'SessionToken.Hash(token)' in pa and 'revoked_at IS NULL' in pa, 'platform admin routes require valid active session and super-admin role')
     check('Math.Clamp(limit ?? 25, 1, 100)' in pa and 'Parameters.AddWithValue' in pa, 'platform admin pagination is capped and SQL parameterized')
-check('MapPlatformAdminEndpoints' in program and 'PlatformAdminEndpoints' in program, 'platform admin endpoints are wired into API')
+check('MapPlatformAdminEndpoints' not in program and 'PlatformAdminEndpoints' not in program, 'platform admin routes remain disabled pending separate privileged access')
 
 # Step 31 Android companion scaffold checks
 android=ROOT/'src/SCOPX.Android'
@@ -205,7 +206,8 @@ audit_hardening=MIGRATIONS/'007_audit_immutability_hardening.sql'
 check(audit_hardening.exists(), 'Step 34 audit immutability migration exists')
 if audit_hardening.exists():
     ah=audit_hardening.read_text(encoding='utf-8')
-    check('BEFORE UPDATE OR DELETE ON audit_events' in ah and 'scopx_reject_audit_mutation' in ah, 'audit event UPDATE and DELETE are blocked by DB trigger')
+    check('BEFORE UPDATE OR DELETE ON public.audit_events' in ah and 'scopx_reject_audit_mutation' in ah, 'audit event UPDATE and DELETE are blocked by DB trigger')
+    check('BEFORE TRUNCATE ON public.audit_events' in ah, 'audit event TRUNCATE is blocked by DB trigger')
     check('pg_column_size(details) <= 8192' in ah, 'audit details payload size is constrained')
 check((ROOT/'docs/STEP-34-SECURITY-AUDIT-HARDENING.md').exists(), 'Step 34 security review and deployment checklist exists')
 
