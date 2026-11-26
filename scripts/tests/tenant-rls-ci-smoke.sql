@@ -38,16 +38,55 @@ VALUES
  ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000d1', 'test', '00000000-0000-0000-0000-0000000000c1'),
  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000d2', 'test', '00000000-0000-0000-0000-0000000000c2');
 
-INSERT INTO public.media_assets (id, hospital_id, procedure_id, media_type, storage_key, file_name, content_type, file_size_bytes, sha256_hex)
-VALUES
- ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000e1', 'image', 'ci/a.jpg', 'a.jpg', 'image/jpeg', 1, repeat('a',64)),
- ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000e2', 'image', 'ci/b.jpg', 'b.jpg', 'image/jpeg', 1, repeat('b',64));
-
-UPDATE public.media_assets SET retention_until = now() - interval '1 day';
 INSERT INTO public.media_retention_policies (hospital_id, enabled, retention_days, policy_reference)
 VALUES
- ('00000000-0000-0000-0000-0000000000b1', true, 3650, 'CI synthetic policy A'),
- ('00000000-0000-0000-0000-0000000000b2', true, 3650, 'CI synthetic policy B');
+ ('00000000-0000-0000-0000-0000000000b1', true, 1, 'CI synthetic policy A'),
+ ('00000000-0000-0000-0000-0000000000b2', false, NULL, NULL);
+
+INSERT INTO public.media_assets (id, hospital_id, procedure_id, media_type, storage_key, file_name, content_type, file_size_bytes, sha256_hex, created_at, retention_until)
+VALUES
+ ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000e1', 'image', 'ci/a.jpg', 'a.jpg', 'image/jpeg', 1, repeat('a',64), now() - interval '2 days', now() - interval '100 years'),
+ ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000e2', 'image', 'ci/b.jpg', 'b.jpg', 'image/jpeg', 1, repeat('b',64), now(), now() - interval '100 years');
+
+-- A missing policy must also stamp NULL, even if a caller supplies a deadline.
+DELETE FROM public.media_retention_policies
+ WHERE hospital_id = '00000000-0000-0000-0000-0000000000b2';
+INSERT INTO public.media_assets (id, hospital_id, procedure_id, media_type, storage_key, file_name, content_type, file_size_bytes, sha256_hex, retention_until)
+VALUES
+ ('00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000e2', 'image', 'ci/no-policy.jpg', 'no-policy.jpg', 'image/jpeg', 1, repeat('c',64), now() - interval '100 years');
+INSERT INTO public.media_retention_policies (hospital_id, enabled, retention_days, policy_reference)
+VALUES ('00000000-0000-0000-0000-0000000000b2', false, NULL, NULL);
+
+DO $scopx_test$
+DECLARE deadline timestamptz;
+BEGIN
+    SELECT retention_until INTO deadline FROM public.media_assets
+     WHERE id = '00000000-0000-0000-0000-0000000000f1';
+    IF deadline IS DISTINCT FROM (SELECT created_at + interval '1 day' FROM public.media_assets WHERE id = '00000000-0000-0000-0000-0000000000f1')
+       OR deadline > now() THEN
+        RAISE EXCEPTION 'enabled retention policy did not stamp created_at plus retention_days';
+    END IF;
+    IF (SELECT retention_until FROM public.media_assets WHERE id = '00000000-0000-0000-0000-0000000000f2') IS NOT NULL THEN
+        RAISE EXCEPTION 'disabled policy accepted or stamped a caller-supplied retention deadline';
+    END IF;
+    IF (SELECT retention_until FROM public.media_assets WHERE id = '00000000-0000-0000-0000-0000000000f3') IS NOT NULL THEN
+        RAISE EXCEPTION 'missing policy accepted or stamped a caller-supplied retention deadline';
+    END IF;
+
+    -- Policy changes do not rewrite deadlines already stamped on existing media.
+    UPDATE public.media_retention_policies SET retention_days = 30
+     WHERE hospital_id = '00000000-0000-0000-0000-0000000000b1';
+    IF (SELECT retention_until FROM public.media_assets WHERE id = '00000000-0000-0000-0000-0000000000f1') IS DISTINCT FROM deadline THEN
+        RAISE EXCEPTION 'policy change recalculated an existing media retention deadline';
+    END IF;
+
+    BEGIN
+        UPDATE public.media_assets SET retention_until = now() - interval '1 day'
+         WHERE id = '00000000-0000-0000-0000-0000000000f2';
+        RAISE EXCEPTION 'runtime media retention stamp was mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+END $scopx_test$;
 INSERT INTO public.media_legal_holds
     (id, hospital_id, media_id, hold_reason, placed_by_user_id)
 VALUES
