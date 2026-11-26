@@ -36,8 +36,8 @@ builder.Services.AddScopxRateLimiting();
 
 var app = builder.Build();
 app.UseScopxExceptionHandling();
-app.UseRateLimiter();
 app.UseScopxSecurityHeaders();
+app.UseRateLimiter();
 
 app.MapGet("/", () => Results.Ok(new
 {
