@@ -1,3 +1,5 @@
+using Npgsql;
+using NpgsqlTypes;
 using Microsoft.Extensions.Logging;
 using SCOPX.Infrastructure.Hospitals;
 using SCOPX.Infrastructure.Sessions;
@@ -239,6 +241,7 @@ await RequireThrowsAsync<InvalidOperationException>(
     "media upload scanning fails closed when ClamAV is not configured");
 
 await RunAuthHttpIntegrationTestsAsync();
+await RunPostgresHttpIntegrationTestsAsync();
 
 
 static async Task RunAuthHttpIntegrationTestsAsync()
@@ -425,6 +428,195 @@ static async Task RunAuthHttpIntegrationTestsAsync()
 
 static string SessionHash(string token) =>
     Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+
+
+static async Task RunPostgresHttpIntegrationTestsAsync()
+{
+    var runtimeConnection = Environment.GetEnvironmentVariable("SCOPX_TEST_DB_RUNTIME_CONNECTION");
+    var ownerConnection = Environment.GetEnvironmentVariable("SCOPX_TEST_DB_OWNER_CONNECTION");
+    if (string.IsNullOrWhiteSpace(runtimeConnection) || string.IsNullOrWhiteSpace(ownerConnection))
+    {
+        Console.WriteLine("SKIP: PostgreSQL-backed HTTP integration tests (test connection variables are not configured).");
+        return;
+    }
+
+    var userA = Guid.Parse("a1000000-0000-0000-0000-000000000001");
+    var userB = Guid.Parse("a1000000-0000-0000-0000-000000000002");
+    var disabledUser = Guid.Parse("a1000000-0000-0000-0000-000000000003");
+    var lockedUser = Guid.Parse("a1000000-0000-0000-0000-000000000004");
+    var hospitalA = Guid.Parse("b1000000-0000-0000-0000-000000000001");
+    var hospitalB = Guid.Parse("b1000000-0000-0000-0000-000000000002");
+    var membershipA = Guid.Parse("c1000000-0000-0000-0000-000000000001");
+    var membershipB = Guid.Parse("c1000000-0000-0000-0000-000000000002");
+    var expiredToken = "synthetic-postgres-expired-token-000000000000";
+    const string password = "ScopxPostgresTest2026";
+    var passwordHasher = new Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>();
+    string HashFor(Guid id) => passwordHasher.HashPassword(new AuthUser { Id = id.ToString("N") }, password);
+
+    await using (var owner = new NpgsqlConnection(ownerConnection))
+    {
+        await owner.OpenAsync();
+        await using var tx = await owner.BeginTransactionAsync();
+        async Task ExecuteSeed(string sql, params (string Name, object Value)[] parameters)
+        {
+            await using var command = new NpgsqlCommand(sql, owner, tx);
+            foreach (var parameter in parameters) command.Parameters.AddWithValue(parameter.Name, parameter.Value);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await ExecuteSeed(
+            "INSERT INTO public.users(id,email_normalized,display_name,status,password_hash) VALUES (@id,@email,@name,@status,@hash)",
+            ("id", userA), ("email", "PG-AUTH-A@EXAMPLE.INVALID"), ("name", "Synthetic PostgreSQL User A"), ("status", "active"), ("hash", HashFor(userA)));
+        await ExecuteSeed(
+            "INSERT INTO public.users(id,email_normalized,display_name,status,password_hash) VALUES (@id,@email,@name,@status,@hash)",
+            ("id", userB), ("email", "PG-AUTH-B@EXAMPLE.INVALID"), ("name", "Synthetic PostgreSQL User B"), ("status", "active"), ("hash", HashFor(userB)));
+        await ExecuteSeed(
+            "INSERT INTO public.users(id,email_normalized,display_name,status,password_hash) VALUES (@id,@email,@name,@status,@hash)",
+            ("id", disabledUser), ("email", "PG-AUTH-DISABLED@EXAMPLE.INVALID"), ("name", "Synthetic Disabled User"), ("status", "disabled"), ("hash", HashFor(disabledUser)));
+        await ExecuteSeed(
+            "INSERT INTO public.users(id,email_normalized,display_name,status,password_hash,failed_login_count,lockout_until) VALUES (@id,@email,@name,'active',@hash,5,now()+interval '10 minutes')",
+            ("id", lockedUser), ("email", "PG-AUTH-LOCKED@EXAMPLE.INVALID"), ("name", "Synthetic Locked User"), ("hash", HashFor(lockedUser)));
+
+        await ExecuteSeed("INSERT INTO public.hospitals(id,name,status) VALUES (@id,@name,'active')",
+            ("id", hospitalA), ("name", "Synthetic PostgreSQL Hospital A"));
+        await ExecuteSeed("INSERT INTO public.hospitals(id,name,status) VALUES (@id,@name,'active')",
+            ("id", hospitalB), ("name", "Synthetic PostgreSQL Hospital B"));
+        await ExecuteSeed("INSERT INTO public.hospital_memberships(id,hospital_id,user_id,status) VALUES (@id,@hospital,@user,'active')",
+            ("id", membershipA), ("hospital", hospitalA), ("user", userA));
+        await ExecuteSeed("INSERT INTO public.hospital_memberships(id,hospital_id,user_id,status) VALUES (@id,@hospital,@user,'active')",
+            ("id", membershipB), ("hospital", hospitalB), ("user", userB));
+        await ExecuteSeed(
+            "INSERT INTO public.membership_roles(hospital_id,membership_id,role_id) SELECT @hospital,@membership,id FROM public.roles WHERE code='doctor'",
+            ("hospital", hospitalA), ("membership", membershipA));
+        await ExecuteSeed(
+            "INSERT INTO public.membership_roles(hospital_id,membership_id,role_id) SELECT @hospital,@membership,id FROM public.roles WHERE code='nurse'",
+            ("hospital", hospitalB), ("membership", membershipB));
+        await ExecuteSeed(
+            "INSERT INTO public.user_sessions(id,user_id,token_hash,created_at,expires_at) VALUES (@id,@user,@hash,now()-interval '2 hours',now()-interval '1 hour')",
+            ("id", Guid.Parse("d1000000-0000-0000-0000-000000000001")), ("user", userA), ("hash", SessionHash(expiredToken)));
+        await tx.CommitAsync();
+    }
+
+    try
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+        builder.Logging.ClearProviders();
+        builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
+        builder.Services.AddSingleton<IUserRepository>(_ => new NpgsqlUserRepository(runtimeConnection));
+        builder.Services.AddSingleton<ISessionRepository>(_ => new NpgsqlSessionRepository(runtimeConnection));
+        builder.Services.AddSingleton<IHospitalMembershipRepository>(_ => new NpgsqlHospitalMembershipRepository(runtimeConnection));
+        builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<AuthUser>, Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>>();
+        builder.Services.AddScoped<PasswordHashService>();
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.AddPolicy("api", _ => RateLimitPartition.GetNoLimiter("postgres-api"));
+            options.AddPolicy("login", _ => RateLimitPartition.GetNoLimiter("postgres-login"));
+        });
+
+        await using var app = builder.Build();
+        app.UseRateLimiter();
+        app.MapAuthEndpoints();
+        app.MapHospitalContextEndpoints();
+        await app.StartAsync();
+        try
+        {
+            var server = app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>();
+            using var client = new HttpClient { BaseAddress = new Uri(server.Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
+            static void Check(HttpResponseMessage response, HttpStatusCode expected, string label)
+            {
+                if (response.StatusCode != expected)
+                    throw new InvalidOperationException($"FAIL: {label}; expected {(int)expected}, got {(int)response.StatusCode}.");
+                Console.WriteLine("PASS: " + label);
+            }
+
+            using var loginA = await client.PostAsJsonAsync("/api/v1/auth/login",
+                new { email = "pg-auth-a@example.invalid", password });
+            Check(loginA, HttpStatusCode.OK, "PostgreSQL runtime role can authenticate a synthetic active user");
+            using var jsonA = JsonDocument.Parse(await loginA.Content.ReadAsStringAsync());
+            var tokenA = jsonA.RootElement.GetProperty("access_token").GetString()
+                ?? throw new InvalidOperationException("PostgreSQL-backed login did not return a token.");
+
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.OK, "PostgreSQL-backed /me resolves a persisted session");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/mine"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.OK, "Npgsql membership repository lists active memberships under runtime grants");
+                var body = await response.Content.ReadAsStringAsync();
+                Require(body.Contains(hospitalA.ToString(), StringComparison.OrdinalIgnoreCase)
+                    && !body.Contains(hospitalB.ToString(), StringComparison.OrdinalIgnoreCase),
+                    "PostgreSQL RLS and membership query isolate hospital A from hospital B");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/context"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+                request.Headers.Add("X-Hospital-ID", hospitalA.ToString());
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.OK, "Npgsql hospital-context repository accepts the user's own tenant");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/context"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+                request.Headers.Add("X-Hospital-ID", hospitalB.ToString());
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.Forbidden, "Npgsql hospital-context repository denies another user's tenant");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", expiredToken);
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.Unauthorized, "PostgreSQL session repository rejects an expired persisted session");
+            }
+            using var disabled = await client.PostAsJsonAsync("/api/v1/auth/login",
+                new { email = "pg-auth-disabled@example.invalid", password });
+            Check(disabled, HttpStatusCode.Unauthorized, "PostgreSQL-backed login rejects a disabled user");
+            using var locked = await client.PostAsJsonAsync("/api/v1/auth/login",
+                new { email = "pg-auth-locked@example.invalid", password });
+            Check(locked, HttpStatusCode.Unauthorized, "PostgreSQL-backed login rejects a locked user");
+            using (var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/logout"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.OK, "PostgreSQL-backed logout persists session revocation");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.Unauthorized, "PostgreSQL-backed /me rejects a revoked persisted session");
+            }
+        }
+        finally
+        {
+            await app.StopAsync();
+        }
+    }
+    finally
+    {
+        await using var cleanup = new NpgsqlConnection(ownerConnection);
+        await cleanup.OpenAsync();
+        await using var command = new NpgsqlCommand(@"
+DELETE FROM public.membership_roles WHERE membership_id IN (@membership_a,@membership_b);
+DELETE FROM public.hospital_memberships WHERE id IN (@membership_a,@membership_b);
+DELETE FROM public.user_sessions WHERE user_id IN (@user_a,@user_b,@disabled,@locked);
+DELETE FROM public.hospitals WHERE id IN (@hospital_a,@hospital_b);
+DELETE FROM public.users WHERE id IN (@user_a,@user_b,@disabled,@locked);", cleanup);
+        command.Parameters.AddWithValue("membership_a", membershipA);
+        command.Parameters.AddWithValue("membership_b", membershipB);
+        command.Parameters.AddWithValue("user_a", userA);
+        command.Parameters.AddWithValue("user_b", userB);
+        command.Parameters.AddWithValue("disabled", disabledUser);
+        command.Parameters.AddWithValue("locked", lockedUser);
+        command.Parameters.AddWithValue("hospital_a", hospitalA);
+        command.Parameters.AddWithValue("hospital_b", hospitalB);
+        await command.ExecuteNonQueryAsync();
+    }
+}
 
 sealed class FakeUserRepository(IEnumerable<UserRecord> seed) : IUserRepository
 {
