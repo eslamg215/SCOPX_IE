@@ -186,7 +186,7 @@ A protected media foundation now validates JPEG/PNG/WebP/MP4/WebM file signature
 
 The SCX2 AES-GCM envelope carries a key ID and supports keyring-based decryption during rotation; automated bulk re-encryption is still outstanding. ClamAV uses an unencrypted TCP protocol and must be isolated on a private network.
 
-See `docs/STEP-41-MEDIA-PROTECTION-FOUNDATION.md` for the encryption envelope, key configuration, and remaining requirements. Production malware scanning, managed key rotation, encrypted backups, retention/deletion controls, streaming video storage, integration tests, and independent security review remain outstanding.
+See `docs/STEP-41-MEDIA-PROTECTION-FOUNDATION.md` for the encryption envelope, key configuration, and remaining requirements. Production malware scanning, managed key rotation, encrypted backups, a deletion worker, secure object deletion, streaming video storage, end-to-end integration tests, and independent security review remain outstanding. Migration 011 provides only the draft retention/legal-hold/queue schema; it does not enable deletion.
 
 **Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
 
@@ -200,3 +200,10 @@ The migration is **excluded from normal local runs** and requires explicit `--in
 Important: a provider-neutral RSA-PSS-SHA256 signing/verification service and a password-reauthenticated signing route implementation are present. The route checks the reviewed report version and writes signature evidence plus its audit event in one transaction, but it is deliberately not mapped by the API host and has no UI. Managed signing-key lifecycle, MFA, public-key registry, amendment workflow, and legal e-signature compliance remain incomplete. The service requires an externally managed private key. CI exercises RSA-PSS with ephemeral keys, including verification and tamper/fail-closed cases; the database smoke test uses dummy signature bytes only for DB guard testing. No production or legally qualified signature is issued.
 
 **Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
+
+
+## Step 43 — Medical-media retention lifecycle (draft)
+
+Migration 011 adds per-hospital retention policy records (disabled until explicitly configured), per-recording legal holds, a guarded deletion queue, and append-only deletion events. The database rejects queueing while a legal hold is active or before an explicit retention deadline. No default retention duration is assumed. The migration is excluded by default and requires `--include-rls-draft --include-retention-draft` in a disposable reviewed database.
+
+No deletion worker, scheduler, storage-object deletion, tombstone execution, two-person approval workflow, or media API activation is included. See `docs/STEP-43-MEDIA-RETENTION-LIFECYCLE.md`. Synthetic data only.
