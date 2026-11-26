@@ -1,5 +1,5 @@
 -- Disposable-database integration smoke test for SCOPX tenant RLS and hardening.
--- Run only after migrations 001-013 and Grant-RuntimePrivileges.sql.
+-- Run only after migrations 001-014 and Grant-RuntimePrivileges.sql.
 -- The entire fixture set is rolled back. All records are synthetic.
 BEGIN;
 
@@ -7,7 +7,7 @@ INSERT INTO public.users (id, email_normalized, display_name, status)
 VALUES
  ('00000000-0000-0000-0000-0000000000a1', 'rls-a@example.invalid', 'RLS Test A', 'active'),
  ('00000000-0000-0000-0000-0000000000a2', 'rls-b@example.invalid', 'RLS Test B', 'active'),
- ('00000000-0000-0000-0000-0000000000a3', 'rls-a-reviewer@example.invalid', 'RLS Test A Reviewer', 'active');;
+ ('00000000-0000-0000-0000-0000000000a3', 'rls-a-reviewer@example.invalid', 'RLS Test A Reviewer', 'active');
 
 -- Synthetic session lifecycle fixtures. The API stores SHA-256 token hashes only.
 INSERT INTO public.user_sessions (id, user_id, token_hash, created_at, expires_at, revoked_at)
