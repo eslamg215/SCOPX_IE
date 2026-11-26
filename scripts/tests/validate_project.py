@@ -18,11 +18,12 @@ runner=ROOT/'scripts/database/Apply-Migrations.py'
 text=runner.read_text(encoding='utf-8')
 check('--single-transaction' in text, 'migration runner wraps each migration in transaction')
 check('sha256' in text and 'checksum changed' in text.lower(), 'migration runner checks historical checksums')
-check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text and 'include-report-signing-draft' in text and 'include-retention-draft' in text, 'security-sensitive migration groups require explicit flags')
+check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text and 'include-report-signing-draft' in text and 'include-retention-draft' in text and 'include-retention-hardening-draft' in text, 'security-sensitive migration groups require explicit flags')
 check('"006_user_sessions.sql"' in text and '"008_role_scope_enforcement.sql"' in text and '"009_hospital_directory_rls.sql"' in text, 'session and tenant-hardening migrations are excluded by default')
 check('007_audit_immutability_hardening.sql' in text and 'include_audit_hardening_draft' in text, 'audit hardening draft is excluded by default unless explicitly opted in')
 check('010_report_versioning_signatures.sql' in text and 'include_report_signing_draft' in text, 'report signing evidence migration is excluded by default unless explicitly opted in')
 check('011_media_retention_lifecycle.sql' in text and 'include_retention_draft' in text, 'media retention lifecycle migration is excluded by default unless explicitly opted in')
+check('012_media_retention_invariant_hardening.sql' in text and 'include_retention_hardening_draft' in text, 'media retention invariant hardening migration requires a separate explicit opt-in')
 program=(API/'Program.cs').read_text(encoding='utf-8')
 check('UseExceptionHandler' in program, 'API has generic exception handler')
 check('AddRateLimiter' in program and 'PermitLimit = 120' in program, 'rate limiting configured in API scaffold')
@@ -172,6 +173,12 @@ if retention_migration.exists():
     check('media_deletion_events' in rm and 'append-only' in rm and 'BEFORE TRUNCATE' in rm, 'media deletion events are append-only and tenant-scoped')
     check('scopx_current_hospital_id' in rm and 'ENABLE ROW LEVEL SECURITY' in rm and 'FORCE ROW LEVEL SECURITY' in rm, 'media retention lifecycle tables enforce tenant RLS')
     check('worker' in rm.lower() and 'No worker' in rm, 'retention migration explicitly does not enable an automated deletion worker')
+retention_hardening=MIGRATIONS/'012_media_retention_invariant_hardening.sql'
+check(retention_hardening.exists(), 'Step 44 media retention invariant hardening migration exists')
+if retention_hardening.exists():
+    rh=retention_hardening.read_text(encoding='utf-8')
+    check('media_deletion_queue_one_open_per_asset_idx' in rh and "status IN ('pending','processing','failed')" in rh, 'only one active media deletion request can exist per asset')
+    check('scopx_guard_media_legal_hold_mutation' in rh and 'legal hold placement facts are immutable' in rh and 'released legal hold records are immutable' in rh, 'legal hold placement and release are one-way immutable facts')
 
 media_endpoints=(API/'Media/MediaEndpoints.cs').read_text(encoding='utf-8')
 media_repo=(infra/'Media/NpgsqlMediaRepository.cs').read_text(encoding='utf-8')
