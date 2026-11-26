@@ -164,7 +164,8 @@ BEGIN
     SELECT count(*) INTO n FROM public.procedures;
     IF n <> 1 THEN RAISE EXCEPTION 'procedure RLS failed for tenant A: %', n; END IF;
     SELECT count(*) INTO n FROM public.media_assets;
-    IF n <> 1 THEN RAISE EXCEPTION 'media RLS failed for tenant A: %', n; END IF;
+    -- Tenant A has its original fixture plus the runtime-role retention-stamping fixture.
+    IF n <> 2 THEN RAISE EXCEPTION 'media RLS failed for tenant A: %', n; END IF;
     SELECT count(*) INTO n FROM public.procedure_reports;
     IF n <> 1 THEN RAISE EXCEPTION 'report RLS failed for tenant A: %', n; END IF;
     SELECT count(*) INTO n FROM public.procedure_report_versions;
