@@ -42,6 +42,28 @@ BEGIN
         END IF;
     END LOOP;
 
+    -- Migration 010 is optional in local setup; validate its controls when installed.
+    FOREACH tbl IN ARRAY ARRAY['procedure_report_versions','procedure_report_signatures'] LOOP
+        IF to_regclass(format('public.%I', tbl)) IS NOT NULL THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_class c
+                WHERE c.oid = to_regclass(format('public.%I', tbl))
+                  AND c.relrowsecurity AND c.relforcerowsecurity
+            ) THEN
+                RAISE EXCEPTION 'RLS and FORCE RLS must both be enabled on optional public.%', tbl;
+            END IF;
+            IF has_table_privilege(runtime_role, format('public.%I', tbl), 'UPDATE')
+               OR has_table_privilege(runtime_role, format('public.%I', tbl), 'DELETE')
+               OR has_table_privilege(runtime_role, format('public.%I', tbl), 'TRUNCATE') THEN
+                RAISE EXCEPTION 'Runtime role has forbidden mutation privileges on public.%', tbl;
+            END IF;
+            IF NOT has_table_privilege(runtime_role, format('public.%I', tbl), 'SELECT')
+               OR NOT has_table_privilege(runtime_role, format('public.%I', tbl), 'INSERT') THEN
+                RAISE EXCEPTION 'Runtime role is missing append-only access on public.%', tbl;
+            END IF;
+        END IF;
+    END LOOP;
+
     IF has_table_privilege(runtime_role, 'public.users', 'SELECT')
        OR has_table_privilege(runtime_role, 'public.user_sessions', 'SELECT') THEN
         RAISE EXCEPTION 'Runtime role has broader table-level identity read access than intended';
