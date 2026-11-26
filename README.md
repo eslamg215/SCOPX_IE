@@ -187,3 +187,14 @@ A protected media foundation now validates JPEG/PNG/WebP/MP4/WebM file signature
 See `docs/STEP-41-MEDIA-PROTECTION-FOUNDATION.md` for the encryption envelope, key configuration, and remaining requirements. Production malware scanning, managed key rotation, encrypted backups, retention/deletion controls, streaming video storage, integration tests, and independent security review remain outstanding.
 
 **Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
+
+
+## Step 42 — Immutable report versions and signature evidence
+
+Migration 010 adds append-only report snapshots, canonical SHA-256 digests, signature evidence metadata, tenant RLS, and database guards that freeze signed reports. Draft edits create a new report version. A signature can only be recorded for the current reviewed version and must carry recent re-authentication metadata.
+
+The migration is **excluded from normal local runs** and requires explicit `--include-rls-draft --include-report-signing-draft` flags. See `docs/STEP-42-REPORT-VERSIONING-SIGNATURE-EVIDENCE.md`.
+
+Important: the signing API, re-authentication flow, managed signing keys, cryptographic verification, amendment workflow, and legal e-signature compliance are not implemented. CI uses dummy signature bytes only to test database guards; no valid electronic signature is issued. The API remains fail-closed and clinical routes remain unmapped.
+
+**Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
