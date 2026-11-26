@@ -6,6 +6,7 @@ using SCOPX.Infrastructure.Sessions;
 using SCOPX.Infrastructure.Hospitals;
 using SCOPX.Api.Tenancy;
 using SCOPX.Api.Media;
+using SCOPX.Api.Reports;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -23,6 +24,7 @@ builder.Services.AddScoped<PasswordHashService>();
 // the protected pipeline; uploads remain fail-closed until a real scanner is installed.
 builder.Services.AddSingleton<MediaContentProtector>();
 builder.Services.AddSingleton<IMediaMalwareScanner, UnavailableMediaMalwareScanner>();
+builder.Services.AddSingleton<ReportSigningService>();
 var databaseConnection = builder.Configuration.GetConnectionString("ScopxDb");
 if (!string.IsNullOrWhiteSpace(databaseConnection))
 {
