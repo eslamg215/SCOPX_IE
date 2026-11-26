@@ -18,7 +18,7 @@ runner=ROOT/'scripts/database/Apply-Migrations.py'
 text=runner.read_text(encoding='utf-8')
 check('--single-transaction' in text, 'migration runner wraps each migration in transaction')
 check('sha256' in text and 'checksum changed' in text.lower(), 'migration runner checks historical checksums')
-check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text and 'include-report-signing-draft' in text and 'include-retention-draft' in text and 'include-retention-hardening-draft' in text and 'include-retention-stamping-draft' in text, 'security-sensitive migration groups require explicit flags')
+check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text and 'include-report-signing-draft' in text and 'include-retention-draft' in text and 'include-retention-hardening-draft' in text and 'include-retention-stamping-draft' in text and 'include-media-deletion-requests-draft' in text, 'security-sensitive migration groups require explicit flags')
 check('"006_user_sessions.sql"' in text and '"008_role_scope_enforcement.sql"' in text and '"009_hospital_directory_rls.sql"' in text, 'session and tenant-hardening migrations are excluded by default')
 check('007_audit_immutability_hardening.sql' in text and 'include_audit_hardening_draft' in text, 'audit hardening draft is excluded by default unless explicitly opted in')
 check('010_report_versioning_signatures.sql' in text and 'include_report_signing_draft' in text, 'report signing evidence migration is excluded by default unless explicitly opted in')
@@ -26,6 +26,7 @@ check('011_media_retention_lifecycle.sql' in text and 'include_retention_draft' 
 check('012_media_retention_invariant_hardening.sql' in text and 'include_retention_hardening_draft' in text, 'media retention invariant hardening migration requires a separate explicit opt-in')
 check('013_media_retention_deadline_stamping.sql' in text and 'include_retention_stamping_draft' in text, 'new-media retention deadline stamping migration requires a separate explicit opt-in')
 check('args.include_retention_draft and args.include_retention_hardening_draft' in text, 'retention stamping opt-in requires both lifecycle and invariant-hardening opt-ins')
+check('args.include_retention_stamping_draft' in text and '014_media_deletion_requests.sql' in text, 'media deletion request migration requires the full retention migration chain')
 program=(API/'Program.cs').read_text(encoding='utf-8')
 check('UseExceptionHandler' in program, 'API has generic exception handler')
 check('AddRateLimiter' in program and 'PermitLimit = 120' in program, 'rate limiting configured in API scaffold')
@@ -181,6 +182,18 @@ if retention_hardening.exists():
     rh=retention_hardening.read_text(encoding='utf-8')
     check('media_deletion_queue_one_open_per_asset_idx' in rh and "status IN ('pending','processing','failed')" in rh, 'only one active media deletion request can exist per asset')
     check('scopx_guard_media_legal_hold_mutation' in rh and 'legal hold placement facts are immutable' in rh and 'released legal hold records are immutable' in rh, 'legal hold placement and release are one-way immutable facts')
+
+request_migration=MIGRATIONS/'014_media_deletion_requests.sql'
+check(request_migration.exists(), 'Step 48 media deletion request workflow migration exists')
+if request_migration.exists():
+    rq=request_migration.read_text(encoding='utf-8')
+    check('media_deletion_requests' in rq and 'media_deletion_request_events' in rq, 'request inbox and separate decision history tables are defined')
+    check("status IN ('submitted','under_review','approved','rejected','cancelled')" in rq, 'request lifecycle states are explicit and bounded')
+    check('media_deletion_requests_one_open_per_asset_idx' in rq, 'only one open request per media asset is allowed')
+    check('request facts are immutable' in rq and 'append-only' in rq and 'BEFORE TRUNCATE' in rq, 'request facts and decision history are protected against tampering')
+    check('requester cannot approve or reject their own request' in rq and 'active membership' in rq, 'request workflow enforces four-eyes approval and active tenant membership')
+    check('ENABLE ROW LEVEL SECURITY' in rq and 'FORCE ROW LEVEL SECURITY' in rq, 'request and event tables enforce tenant RLS')
+    check('does not' in rq.lower() and 'execution queue' in rq.lower(), 'request workflow is separate from physical deletion execution')
 
 retention_stamping=MIGRATIONS/'013_media_retention_deadline_stamping.sql'
 check(retention_stamping.exists(), 'Step 45 new-media retention deadline stamping migration exists')
