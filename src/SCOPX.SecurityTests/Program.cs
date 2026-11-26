@@ -149,6 +149,59 @@ RequireThrows<InvalidOperationException>(() => weakService.Sign(input),
     "RSA keys smaller than 2048 bits are rejected");
 
 
+
+var mediaKeyA = RandomNumberGenerator.GetBytes(32);
+var mediaKeyB = RandomNumberGenerator.GetBytes(32);
+var hospitalId = Guid.NewGuid();
+var mediaId = Guid.NewGuid();
+var mediaPlaintext = Enumerable.Range(0, 4096).Select(i => (byte)(i % 251)).ToArray();
+var keyAConfig = new ConfigurationBuilder()
+    .AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["MediaStorage:ActiveKeyId"] = "media-key-a",
+        ["MediaStorage:Keys:media-key-a"] = Convert.ToBase64String(mediaKeyA)
+    }).Build();
+var keyAProtector = new MediaContentProtector(keyAConfig);
+var encryptedWithA = keyAProtector.Encrypt(hospitalId, mediaId, mediaPlaintext);
+Require(Encoding.ASCII.GetString(encryptedWithA, 0, 4) == "SCX2",
+    "media encryption uses a versioned key-identified envelope");
+Require(keyAProtector.Decrypt(hospitalId, mediaId, encryptedWithA).SequenceEqual(mediaPlaintext),
+    "media AES-GCM encryption round-trips with the active key");
+
+var rotationConfig = new ConfigurationBuilder()
+    .AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["MediaStorage:ActiveKeyId"] = "media-key-b",
+        ["MediaStorage:Keys:media-key-a"] = Convert.ToBase64String(mediaKeyA),
+        ["MediaStorage:Keys:media-key-b"] = Convert.ToBase64String(mediaKeyB)
+    }).Build();
+var rotationProtector = new MediaContentProtector(rotationConfig);
+Require(rotationProtector.Decrypt(hospitalId, mediaId, encryptedWithA).SequenceEqual(mediaPlaintext),
+    "rotated keyring retains decryption access to existing media");
+var encryptedWithB = rotationProtector.Encrypt(hospitalId, mediaId, mediaPlaintext);
+Require(rotationProtector.Decrypt(hospitalId, mediaId, encryptedWithB).SequenceEqual(mediaPlaintext),
+    "new media is encrypted with the newly active key");
+
+var newKeyOnlyConfig = new ConfigurationBuilder()
+    .AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["MediaStorage:ActiveKeyId"] = "media-key-b",
+        ["MediaStorage:Keys:media-key-b"] = Convert.ToBase64String(mediaKeyB)
+    }).Build();
+var newKeyOnlyProtector = new MediaContentProtector(newKeyOnlyConfig);
+RequireThrows<InvalidOperationException>(() => newKeyOnlyProtector.Decrypt(hospitalId, mediaId, encryptedWithA),
+    "old media cannot be decrypted after its key is removed from the keyring");
+
+var tamperedMedia = encryptedWithB.ToArray();
+tamperedMedia[^1] ^= 0x01;
+RequireThrows<CryptographicException>(() => rotationProtector.Decrypt(hospitalId, mediaId, tamperedMedia),
+    "tampered media ciphertext is rejected");
+RequireThrows<CryptographicException>(() => rotationProtector.Decrypt(Guid.NewGuid(), mediaId, encryptedWithB),
+    "media ciphertext cannot be moved across hospital tenants");
+
+CryptographicOperations.ZeroMemory(mediaKeyA);
+CryptographicOperations.ZeroMemory(mediaKeyB);
+
 await RunClamAvFixtureAsync("stream: OK", true, "ClamAV INSTREAM clean response is accepted");
 await RunClamAvFixtureAsync("stream: Eicar-Test-Signature FOUND", false, "ClamAV INSTREAM infected response is rejected");
 var noScannerConfig = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
@@ -157,4 +210,4 @@ await RequireThrowsAsync<InvalidOperationException>(
     async () => { await unavailableScanner.IsCleanAsync(new byte[] { 1 }, CancellationToken.None); },
     "media upload scanning fails closed when ClamAV is not configured");
 
-Console.WriteLine("All report-signing cryptography tests passed.");
+Console.WriteLine("All SCOPX security tests passed.");
