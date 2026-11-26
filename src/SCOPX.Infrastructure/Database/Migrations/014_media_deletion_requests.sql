@@ -215,8 +215,8 @@ CREATE OR REPLACE FUNCTION public.scopx_reject_media_deletion_request_event_muta
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   RAISE EXCEPTION 'media deletion request events are append-only' USING ERRCODE = '55000';
+END;
 $$;
-$;
 REVOKE ALL ON FUNCTION public.scopx_reject_media_deletion_request_event_mutation() FROM PUBLIC;
 CREATE TRIGGER media_deletion_request_events_immutable
 BEFORE UPDATE OR DELETE ON public.media_deletion_request_events
