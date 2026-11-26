@@ -464,7 +464,12 @@ static async Task RunAuthHttpIntegrationTestsAsync()
         }
         using (var overLimit = await client.PostAsJsonAsync("/api/v1/auth/login",
             new { email = "not-present@example.invalid", password = "NoSuchSyntheticPassword2026" }))
+        {
             Check(overLimit, HttpStatusCode.TooManyRequests, "HTTP login rate limiter rejects the eleventh request from one client");
+            Require(overLimit.Headers.TryGetValues("X-Content-Type-Options", out var limitedNosniff)
+                && limitedNosniff.Single() == "nosniff",
+                "Rate-limit rejection responses retain the standard security headers");
+        }
     }
     finally
     {
