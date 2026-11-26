@@ -245,3 +245,15 @@ Synthetic data only. This is a security review, not clinical validation or produ
 - No database was started, no migration was applied, and no password was read, generated, or rotated.
 - See `docs/STEP-65-LOCAL-DB-DEPLOYMENT-HARDENING.md`.
 
+
+
+## Step 66 — API health and deployment-readiness review
+
+- Kept `/health` liveness independent of PostgreSQL and `/health/ready` as a separate database-connectivity probe.
+- Removed general API rate limiting from health probes so monitoring remains reliable during request spikes.
+- Readiness returns generic status only, and request/host cancellation is no longer swallowed as a database failure.
+- Confirmed exception responses do not expose exception details and clinical/platform routes remain unmapped.
+- See `docs/STEP-66-API-HEALTH-AND-DEPLOYMENT-READINESS-REVIEW.md`.
+- Readiness confirms connectivity only; it does not establish schema, migration, tenant-security, backup, or clinical readiness.
+
+Synthetic data only. Development scaffold; not production-ready or clinically validated.
