@@ -259,6 +259,21 @@ static async Task RunAuthHttpIntegrationTestsAsync()
     {
         Console.WriteLine("PASS: CORS configuration rejects wildcard origins");
     }
+    foreach (var invalidOrigin in new[] { "http://evil.example", "https://app.scopx.test/path", "https://user:pass@app.scopx.test" })
+    {
+        var invalidConfig = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Cors:AllowedOrigins:0"] = invalidOrigin })
+            .Build();
+        try
+        {
+            new ServiceCollection().AddScopxCors(invalidConfig);
+            throw new InvalidOperationException("FAIL: invalid CORS origin configuration should be rejected.");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Cors:AllowedOrigins", StringComparison.Ordinal))
+        {
+            Console.WriteLine("PASS: CORS configuration rejects unsafe origin " + invalidOrigin);
+        }
+    }
     var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>();
     var userId = Guid.Parse("10000000-0000-0000-0000-000000000001");
     var disabledId = Guid.Parse("10000000-0000-0000-0000-000000000002");
