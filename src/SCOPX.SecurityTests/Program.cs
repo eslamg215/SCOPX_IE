@@ -687,6 +687,15 @@ static async Task RunPostgresHttpIntegrationTestsAsync()
                 Console.WriteLine("PASS: " + label);
             }
 
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+            {
+                request.Headers.Add("Origin", "https://app.scopx.test");
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.Unauthorized, "PostgreSQL test host still requires authentication");
+                Require(!response.Headers.Contains("Access-Control-Allow-Origin"),
+                    "CORS denies every browser origin when no allowlist is configured");
+            }
+
             using var loginA = await client.PostAsJsonAsync("/api/v1/auth/login",
                 new { email = "pg-auth-a@example.invalid", password });
             Check(loginA, HttpStatusCode.OK, "PostgreSQL runtime role can authenticate a synthetic active user");
