@@ -170,6 +170,15 @@ report_repository=(infra/'Reports/NpgsqlReportRepository.cs').read_text(encoding
 check('report_body_sha256' in report_repository and 'report_version=report_version+1' in report_repository and 'HashBody' in report_repository, 'report draft edits hash and increment each immutable version')
 report_endpoints=(API/'Reports/ReportEndpoints.cs').read_text(encoding='utf-8')
 check('ExpectedVersion' in report_endpoints and 'expectedVersion' in report_repository and 'report_version=@expected' in report_repository, 'report draft updates require an expected version to prevent lost updates')
+signing_service=API/'Reports/ReportSigningService.cs'
+check(signing_service.exists(), 'RSA-PSS report signing service exists')
+if signing_service.exists():
+    ssvc=signing_service.read_text(encoding='utf-8')
+    check('RSA-PSS-SHA256' in ssvc and 'RSASignaturePadding.Pss' in ssvc, 'report signing uses RSA-PSS with SHA-256')
+    check('RSA.SignData' in ssvc and 'rsa.VerifyData' in ssvc, 'report signing artifacts can be created and cryptographically verified')
+    check('Reports:SigningPrivateKeyPem' in ssvc and 'Reports:SigningKeyId' in ssvc, 'report signing requires an externally configured private key and key identifier')
+    check('TimeSpan.FromMinutes(5)' in ssvc and 'CanonicalizationVersion' in ssvc, 'report signature binds canonical version and recent re-authentication metadata')
+check('AddSingleton<ReportSigningService>' in program, 'report signing service is registered but requires external key configuration')
 report_smoke=(ROOT/'scripts/tests/tenant-rls-ci-smoke.sql').read_text(encoding='utf-8')
 check('report-version RLS failed' in report_smoke and 'signed report mutation was not rejected' in report_smoke, 'PostgreSQL smoke test covers report tenant isolation and signed immutability')
 
