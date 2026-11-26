@@ -276,14 +276,12 @@ static async Task RunAuthHttpIntegrationTestsAsync()
     builder.Services.AddSingleton<IHospitalMembershipRepository>(memberships);
     builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<AuthUser>, Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>>();
     builder.Services.AddScoped<PasswordHashService>();
-    builder.Services.AddRateLimiter(options =>
-    {
-        options.AddPolicy("api", _ => RateLimitPartition.GetNoLimiter("synthetic-api"));
-        options.AddPolicy("login", _ => RateLimitPartition.GetNoLimiter("synthetic-login"));
-    });
+    builder.Services.AddScopxRateLimiting();
 
     await using var app = builder.Build();
+    app.UseScopxExceptionHandling();
     app.UseRateLimiter();
+    app.UseScopxSecurityHeaders();
     app.MapAuthEndpoints();
     app.MapHospitalContextEndpoints();
     await app.StartAsync();
@@ -507,14 +505,12 @@ static async Task RunPostgresHttpIntegrationTestsAsync()
         builder.Services.AddSingleton<IHospitalMembershipRepository>(_ => new NpgsqlHospitalMembershipRepository(runtimeConnection));
         builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<AuthUser>, Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>>();
         builder.Services.AddScoped<PasswordHashService>();
-        builder.Services.AddRateLimiter(options =>
-        {
-            options.AddPolicy("api", _ => RateLimitPartition.GetNoLimiter("postgres-api"));
-            options.AddPolicy("login", _ => RateLimitPartition.GetNoLimiter("postgres-login"));
-        });
+        builder.Services.AddScopxRateLimiting();
 
         await using var app = builder.Build();
+        app.UseScopxExceptionHandling();
         app.UseRateLimiter();
+        app.UseScopxSecurityHeaders();
         app.MapAuthEndpoints();
         app.MapHospitalContextEndpoints();
         await app.StartAsync();
