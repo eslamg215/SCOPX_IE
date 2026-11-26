@@ -21,6 +21,10 @@ BEGIN
         RETURN NEW;
     END IF;
 
+    -- The server owns the creation timestamp; callers cannot backdate a new
+    -- asset to shorten its retention period.
+    NEW.created_at := transaction_timestamp();
+
     SELECT enabled, retention_days
       INTO policy_enabled, policy_days
       FROM public.media_retention_policies
