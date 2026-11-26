@@ -247,6 +247,18 @@ await RunPostgresHttpIntegrationTestsAsync();
 
 static async Task RunAuthHttpIntegrationTestsAsync()
 {
+    var invalidCorsConfig = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+        .AddInMemoryCollection(new Dictionary<string, string?> { ["Cors:AllowedOrigins:0"] = "*" })
+        .Build();
+    try
+    {
+        new ServiceCollection().AddScopxCors(invalidCorsConfig);
+        throw new InvalidOperationException("FAIL: wildcard CORS origin configuration should be rejected.");
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("Cors:AllowedOrigins", StringComparison.Ordinal))
+    {
+        Console.WriteLine("PASS: CORS configuration rejects wildcard origins");
+    }
     var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>();
     var userId = Guid.Parse("10000000-0000-0000-0000-000000000001");
     var disabledId = Guid.Parse("10000000-0000-0000-0000-000000000002");
