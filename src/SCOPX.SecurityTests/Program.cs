@@ -611,10 +611,12 @@ static async Task RunPostgresHttpIntegrationTestsAsync()
         builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<AuthUser>, Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>>();
         builder.Services.AddScoped<PasswordHashService>();
         builder.Services.AddScopxRateLimiting();
+        builder.Services.AddScopxCors(builder.Configuration);
 
         await using var app = builder.Build();
         app.UseScopxExceptionHandling();
         app.UseScopxSecurityHeaders();
+        app.UseCors("scopx");
         app.UseRateLimiter();
         app.MapAuthEndpoints();
         app.MapHospitalContextEndpoints();
