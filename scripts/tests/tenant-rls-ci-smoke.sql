@@ -6,7 +6,8 @@ BEGIN;
 INSERT INTO public.users (id, email_normalized, display_name, status)
 VALUES
  ('00000000-0000-0000-0000-0000000000a1', 'rls-a@example.invalid', 'RLS Test A', 'active'),
- ('00000000-0000-0000-0000-0000000000a2', 'rls-b@example.invalid', 'RLS Test B', 'active');
+ ('00000000-0000-0000-0000-0000000000a2', 'rls-b@example.invalid', 'RLS Test B', 'active'),
+ ('00000000-0000-0000-0000-0000000000a3', 'rls-a-reviewer@example.invalid', 'RLS Test A Reviewer', 'active');
 
 INSERT INTO public.hospitals (id, name, status)
 VALUES
@@ -16,7 +17,8 @@ VALUES
 INSERT INTO public.hospital_memberships (id, hospital_id, user_id, status)
 VALUES
  ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a1', 'active'),
- ('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000a2', 'active');
+ ('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000a2', 'active'),
+ ('00000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-00000000-0000000000a3', 'active');
 
 INSERT INTO public.membership_roles (hospital_id, membership_id, role_id)
 SELECT '00000000-0000-0000-0000-0000000000b1',
@@ -224,6 +226,113 @@ BEGIN
     SELECT count(*) INTO n FROM public.audit_events;
     IF n <> 1 THEN RAISE EXCEPTION 'audit RLS failed for tenant B: %', n; END IF;
 END $$;
+
+-- Media deletion request workflow: a request is permitted even while a hold
+-- is active or retention is unexpired; it is NOT an execution-queue item.
+SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a1', true);
+SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b1', true);
+INSERT INTO public.media_deletion_requests
+    (id, hospital_id, media_id, reason, requested_by_user_id)
+VALUES
+ ('30000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-0000000000b1',
+  '00000000-0000-0000-0000-0000000000f1',
+  'CI synthetic request under active legal hold and retention window',
+  '00000000-0000-0000-0000-0000000000a1');
+
+DO $scopx_request_test$
+BEGIN
+    IF (SELECT count(*) FROM public.media_deletion_request_events
+         WHERE request_id = '30000000-0000-0000-0000-000000000001'
+           AND from_status IS NULL AND to_status = 'submitted') <> 1 THEN
+      RAISE EXCEPTION 'request submission event was not recorded';
+    END IF;
+    IF (SELECT count(*) FROM public.media_deletion_queue
+         WHERE media_id = '00000000-0000-0000-0000-0000000000f1') <> 0 THEN
+      RAISE EXCEPTION 'request submission incorrectly enqueued physical deletion';
+    END IF;
+    BEGIN
+      UPDATE public.media_deletion_requests
+         SET reason = 'tampered request facts'
+       WHERE id = '30000000-0000-0000-0000-000000000001';
+      RAISE EXCEPTION 'request immutable facts were mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+      UPDATE public.media_deletion_requests
+         SET status = 'approved', decision_reason = 'invalid direct approval'
+       WHERE id = '30000000-0000-0000-0000-000000000001';
+      RAISE EXCEPTION 'invalid submitted-to-approved transition was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+    BEGIN
+      INSERT INTO public.media_deletion_requests
+        (hospital_id, media_id, reason, requested_by_user_id)
+      VALUES
+        ('00000000-0000-0000-0000-0000000000b1',
+         '00000000-0000-0000-0000-0000000000f1',
+         'CI duplicate open request', '00000000-0000-0000-0000-0000000000a1');
+      RAISE EXCEPTION 'duplicate open request was accepted';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+END $scopx_request_test$;
+
+-- A distinct active tenant member reviews and approves. Approval remains a
+-- record only: no queue item or physical deletion is created in migration 014.
+SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a3', true);
+UPDATE public.media_deletion_requests
+   SET status = 'under_review'
+ WHERE id = '30000000-0000-0000-0000-000000000001';
+UPDATE public.media_deletion_requests
+   SET status = 'approved', decision_reason = 'CI synthetic approval; enqueue remains disabled'
+ WHERE id = '30000000-0000-0000-0000-000000000001';
+
+DO $scopx_request_test$
+BEGIN
+    IF (SELECT status FROM public.media_deletion_requests
+         WHERE id = '30000000-0000-0000-0000-000000000001') <> 'approved' THEN
+      RAISE EXCEPTION 'valid four-eyes approval did not persist';
+    END IF;
+    IF (SELECT count(*) FROM public.media_deletion_request_events
+         WHERE request_id = '30000000-0000-0000-0000-000000000001') <> 3 THEN
+      RAISE EXCEPTION 'request event history is incomplete';
+    END IF;
+    IF (SELECT count(*) FROM public.media_deletion_queue
+         WHERE media_id = '00000000-0000-0000-0000-0000000000f1') <> 0 THEN
+      RAISE EXCEPTION 'approval unexpectedly enqueued deletion';
+    END IF;
+    BEGIN
+      UPDATE public.media_deletion_request_events
+         SET reason = 'tampered event'
+       WHERE request_id = '30000000-0000-0000-0000-000000000001';
+      RAISE EXCEPTION 'request event UPDATE was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+      DELETE FROM public.media_deletion_request_events
+       WHERE request_id = '30000000-0000-0000-0000-000000000001';
+      RAISE EXCEPTION 'request event DELETE was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+      EXECUTE 'TRUNCATE TABLE public.media_deletion_request_events';
+      RAISE EXCEPTION 'request event TRUNCATE was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+END $scopx_request_test$;
+
+-- Cross-tenant visibility is empty for both request and event history.
+SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a2', true);
+SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b2', true);
+DO $scopx_request_test$
+BEGIN
+    IF (SELECT count(*) FROM public.media_deletion_requests) <> 0 THEN
+      RAISE EXCEPTION 'media deletion request RLS leaked across tenants';
+    END IF;
+    IF (SELECT count(*) FROM public.media_deletion_request_events) <> 0 THEN
+      RAISE EXCEPTION 'media deletion request event RLS leaked across tenants';
+    END IF;
+END $scopx_request_test$;
 
 RESET ROLE;
 
