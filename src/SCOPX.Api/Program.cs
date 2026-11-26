@@ -5,6 +5,7 @@ using SCOPX.Infrastructure.Users;
 using SCOPX.Infrastructure.Sessions;
 using SCOPX.Infrastructure.Hospitals;
 using SCOPX.Api.Tenancy;
+using SCOPX.Api.Media;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -18,6 +19,10 @@ builder.Services.AddHealthChecks();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = 60 * 1024 * 1024);
 builder.Services.AddScoped<IPasswordHasher<AuthUser>, PasswordHasher<AuthUser>>();
 builder.Services.AddScoped<PasswordHashService>();
+// Media routes are intentionally not mapped. The encryption service is ready for
+// the protected pipeline; uploads remain fail-closed until a real scanner is installed.
+builder.Services.AddSingleton<MediaContentProtector>();
+builder.Services.AddSingleton<IMediaMalwareScanner, UnavailableMediaMalwareScanner>();
 var databaseConnection = builder.Configuration.GetConnectionString("ScopxDb");
 if (!string.IsNullOrWhiteSpace(databaseConnection))
 {
