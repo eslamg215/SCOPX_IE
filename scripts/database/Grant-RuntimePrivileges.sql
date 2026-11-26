@@ -1,5 +1,5 @@
 -- SCOPX.I.E least-privilege runtime grants.
--- Apply only after migrations 001-009 (and optional 010 when installed) and the RLS validation suite have passed
+-- Apply only after reviewed migrations 001-009 (and optional 010/011 when installed) and the RLS validation suite have passed
 -- in a disposable development database. Execute as the database/schema owner.
 -- Create scopx_runtime separately with LOGIN, NOSUPERUSER, NOCREATEDB,
 -- NOCREATEROLE, NOINHERIT. Never grant ownership, BYPASSRLS, or migration rights.
