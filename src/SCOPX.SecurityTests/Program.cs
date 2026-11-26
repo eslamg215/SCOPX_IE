@@ -280,8 +280,8 @@ static async Task RunAuthHttpIntegrationTestsAsync()
 
     await using var app = builder.Build();
     app.UseScopxExceptionHandling();
-    app.UseRateLimiter();
     app.UseScopxSecurityHeaders();
+    app.UseRateLimiter();
     app.MapAuthEndpoints();
     app.MapHospitalContextEndpoints();
     app.MapGet("/_test/throw", () => Task.FromException<IResult>(new InvalidOperationException("synthetic-secret-exception-detail")));
@@ -557,8 +557,8 @@ static async Task RunPostgresHttpIntegrationTestsAsync()
 
         await using var app = builder.Build();
         app.UseScopxExceptionHandling();
-        app.UseRateLimiter();
         app.UseScopxSecurityHeaders();
+        app.UseRateLimiter();
         app.MapAuthEndpoints();
         app.MapHospitalContextEndpoints();
         await app.StartAsync();
