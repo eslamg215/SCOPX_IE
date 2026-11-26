@@ -7,7 +7,33 @@ INSERT INTO public.users (id, email_normalized, display_name, status)
 VALUES
  ('00000000-0000-0000-0000-0000000000a1', 'rls-a@example.invalid', 'RLS Test A', 'active'),
  ('00000000-0000-0000-0000-0000000000a2', 'rls-b@example.invalid', 'RLS Test B', 'active'),
- ('00000000-0000-0000-0000-0000000000a3', 'rls-a-reviewer@example.invalid', 'RLS Test A Reviewer', 'active');
+ ('00000000-0000-0000-0000-0000000000a3', 'rls-a-reviewer@example.invalid', 'RLS Test A Reviewer', 'active');;
+
+-- Synthetic session lifecycle fixtures. The API stores SHA-256 token hashes only.
+INSERT INTO public.user_sessions (id, user_id, token_hash, created_at, expires_at, revoked_at)
+VALUES
+ ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', repeat('a',64), now() - interval '1 minute', now() + interval '1 hour', NULL),
+ ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000a1', repeat('b',64), now() - interval '2 hours', now() - interval '1 hour', NULL),
+ ('30000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000000a1', repeat('c',64), now() - interval '1 minute', now() + interval '1 hour', now()),
+ ('30000000-0000-0000-0000-0000000000a004', '00000000-0000-0000-0000-0000000000a2', repeat('d',64), now() - interval '1 minute', now() + interval '1 hour', NULL);
+
+DO $session_fixture_test$
+DECLARE active_count integer; expired_count integer; revoked_count integer; wrong_user_count integer;
+BEGIN
+    SELECT count(*) INTO active_count FROM public.user_sessions
+     WHERE token_hash = repeat('a',64) AND revoked_at IS NULL AND expires_at > now()
+       AND user_id = '00000000-0000-0000-0000-0000000000a1';
+    SELECT count(*) INTO expired_count FROM public.user_sessions
+     WHERE token_hash = repeat('b',64) AND revoked_at IS NULL AND expires_at > now();
+    SELECT count(*) INTO revoked_count FROM public.user_sessions
+     WHERE token_hash = repeat('c',64) AND revoked_at IS NULL AND expires_at > now();
+    SELECT count(*) INTO wrong_user_count FROM public.user_sessions
+     WHERE token_hash = repeat('d',64) AND user_id = '00000000-0000-0000-0000-0000000000a1';
+    IF active_count <> 1 THEN RAISE EXCEPTION 'active synthetic session was not recognized'; END IF;
+    IF expired_count <> 0 THEN RAISE EXCEPTION 'expired synthetic session was accepted'; END IF;
+    IF revoked_count <> 0 THEN RAISE EXCEPTION 'revoked synthetic session was accepted'; END IF;
+    IF wrong_user_count <> 0 THEN RAISE EXCEPTION 'session was resolved for a different user'; END IF;
+END $session_fixture_test$;
 
 INSERT INTO public.hospitals (id, name, status)
 VALUES
