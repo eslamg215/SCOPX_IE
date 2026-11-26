@@ -212,3 +212,8 @@ No deletion worker, scheduler, storage-object deletion, tombstone execution, two
 ## Step 44 — Media retention invariant hardening (draft)
 
 Migration 012 enforces one open deletion request per recording and makes legal-hold placement facts immutable, with a one-time auditable release. It is excluded by default and requires `--include-rls-draft --include-retention-draft --include-retention-hardening-draft`. No deletion worker or object deletion is enabled. See `docs/STEP-44-MEDIA-RETENTION-INVARIANT-HARDENING.md`.
+
+
+## Step 45 — New-media retention deadline stamping (draft)
+
+Migration 013 stamps a retention deadline on new media only when an explicitly enabled per-hospital policy exists. The deadline is based on `created_at + retention_days`; missing/disabled policies force NULL, caller-supplied deadlines are ignored, and existing media deadlines are immutable and are not recalculated when policy settings change. Migration 013 is excluded by default and requires `--include-rls-draft --include-retention-draft --include-retention-hardening-draft --include-retention-stamping-draft`. CI tests enabled, disabled, and missing policies. No worker or physical deletion is enabled. Synthetic data only.
