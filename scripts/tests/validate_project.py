@@ -33,6 +33,10 @@ check('UseScopxExceptionHandling' in program and 'UseExceptionHandler' in pipeli
 check('AddScopxRateLimiting' in program and 'PermitLimit = 120' in pipeline and 'PermitLimit = 10' in pipeline, 'rate limiting configured in API scaffold')
 check('UseScopxSecurityHeaders' in program and 'X-Correlation-ID' in pipeline and 'Content-Security-Policy' in pipeline, 'request correlation and security headers present')
 check('"/health/ready"' in program and 'SELECT 1' in program, 'API readiness endpoint checks configured database connectivity')
+auth_endpoints=(API/'Authentication/AuthEndpoints.cs').read_text(encoding='utf-8')
+check('RequestSizeLimitAttribute(16 * 1024)' in auth_endpoints, 'login endpoint enforces a 16 KiB request-body limit')
+security_tests=(ROOT/'src/SCOPX.SecurityTests/Program.cs').read_text(encoding='utf-8')
+check('HTTP login rejects malformed JSON' in security_tests and 'HTTP login rejects unsupported content types' in security_tests and 'HTTP login rejects request bodies larger than 16 KiB' in security_tests, 'login request validation and body-size regression tests exist')
 security=API/'Security'
 check((security/'PasswordHashService.cs').exists(), 'password hashing service file exists')
 check((security/'PasswordPolicy.cs').exists(), 'password policy file exists')
