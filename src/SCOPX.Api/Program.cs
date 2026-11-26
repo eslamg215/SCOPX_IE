@@ -32,60 +32,12 @@ if (!string.IsNullOrWhiteSpace(databaseConnection))
     builder.Services.AddScoped<ISessionRepository>(_ => new NpgsqlSessionRepository(databaseConnection));
     builder.Services.AddScoped<IHospitalMembershipRepository>(_ => new NpgsqlHospitalMembershipRepository(databaseConnection));
 }
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    // Partition by the socket peer address so one client cannot consume the
-    // entire development API's shared rate-limit bucket. Production deployments
-    // behind a proxy must configure trusted forwarded headers before relying on this key.
-    options.AddPolicy("api", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 120,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
-
-    // Password guessing is more sensitive than ordinary API reads.
-    options.AddPolicy("login", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
-});
+builder.Services.AddScopxRateLimiting();
 
 var app = builder.Build();
-app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
-{
-    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-    context.Response.ContentType = "application/json";
-    await context.Response.WriteAsJsonAsync(new { error = "internal_error", message = "An unexpected error occurred." });
-}));
+app.UseScopxExceptionHandling();
 app.UseRateLimiter();
-app.Use(async (context, next) =>
-{
-    // Accept a caller correlation ID only if it is short and safe; otherwise generate one.
-    var incoming = context.Request.Headers["X-Correlation-ID"].ToString();
-    var correlationId = incoming.Length is > 0 and <= 64 && incoming.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_')
-        ? incoming
-        : Guid.NewGuid().ToString("N");
-    context.TraceIdentifier = correlationId;
-    context.Response.Headers["X-Correlation-ID"] = correlationId;
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["X-Frame-Options"] = "DENY";
-    context.Response.Headers["Referrer-Policy"] = "no-referrer";
-    context.Response.Headers["Cache-Control"] = "no-store";
-    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
-    await next();
-});
+app.UseScopxSecurityHeaders();
 
 app.MapGet("/", () => Results.Ok(new
 {
