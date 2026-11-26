@@ -18,9 +18,10 @@ runner=ROOT/'scripts/database/Apply-Migrations.py'
 text=runner.read_text(encoding='utf-8')
 check('--single-transaction' in text, 'migration runner wraps each migration in transaction')
 check('sha256' in text and 'checksum changed' in text.lower(), 'migration runner checks historical checksums')
-check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text, 'security-sensitive migration groups require explicit flags')
+check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text and 'include-report-signing-draft' in text, 'security-sensitive migration groups require explicit flags')
 check('"006_user_sessions.sql"' in text and '"008_role_scope_enforcement.sql"' in text and '"009_hospital_directory_rls.sql"' in text, 'session and tenant-hardening migrations are excluded by default')
 check('007_audit_immutability_hardening.sql' in text and 'include_audit_hardening_draft' in text, 'audit hardening draft is excluded by default unless explicitly opted in')
+check('010_report_versioning_signatures.sql' in text and 'include_report_signing_draft' in text, 'report signing evidence migration is excluded by default unless explicitly opted in')
 program=(API/'Program.cs').read_text(encoding='utf-8')
 check('UseExceptionHandler' in program, 'API has generic exception handler')
 check('AddRateLimiter' in program and 'PermitLimit = 120' in program, 'rate limiting configured in API scaffold')
@@ -154,6 +155,21 @@ if protection.exists():
     check('AssociatedData' in mp and 'CryptographicOperations.ZeroMemory(key)' in mp, 'media encryption binds tenant and asset identity and clears key buffers')
     check('UnavailableMediaMalwareScanner' in mp and 'No malware scanning engine is configured' in mp, 'default malware scanner rejects uploads until a real scanner is configured')
 check('MapMediaEndpoints' not in program and 'IMediaRepository' not in program, 'media routes remain disabled pending scanner, retention, and operational verification')
+
+
+# Step 42 immutable report versions and signing evidence foundation
+report_versions_migration=MIGRATIONS/'010_report_versioning_signatures.sql'
+check(report_versions_migration.exists(), 'Step 42 report versioning and signature evidence migration exists')
+if report_versions_migration.exists():
+    rvm=report_versions_migration.read_text(encoding='utf-8')
+    check('procedure_report_versions' in rvm and 'procedure_report_signatures' in rvm, 'report snapshots and signature artifact tables are defined')
+    check('scopx_reject_report_artifact_mutation' in rvm and 'BEFORE TRUNCATE' in rvm, 'report artifacts are protected against UPDATE, DELETE and TRUNCATE')
+    check('scopx_apply_report_signature' in rvm and 'reauthenticated_at' in rvm and 'RSA-PSS-SHA256' in rvm, 'signature evidence requires re-authentication metadata and a pinned algorithm')
+    check('SCOPX-REPORT-TEXT-V1' in rvm and 'LEGACY-RAW-UTF8-V1' in rvm, 'report digest canonicalization versions are explicit')
+report_repository=(infra/'Reports/NpgsqlReportRepository.cs').read_text(encoding='utf-8')
+check('report_body_sha256' in report_repository and 'report_version=report_version+1' in report_repository and 'HashBody' in report_repository, 'report draft edits hash and increment each immutable version')
+report_smoke=(ROOT/'scripts/tests/tenant-rls-ci-smoke.sql').read_text(encoding='utf-8')
+check('report-version RLS failed' in report_smoke and 'signed report mutation was not rejected' in report_smoke, 'PostgreSQL smoke test covers report tenant isolation and signed immutability')
 
 # Step 29 Windows workstation shell checks
 workstation=ROOT/'src/SCOPX.Workstation'
