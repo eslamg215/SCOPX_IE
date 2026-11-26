@@ -18,7 +18,7 @@
 - There is still no signing API endpoint and no report-signing UI. The signing service is not yet wired to the report repository or signature table.
 - There is no strong re-authentication flow wired to report signing; the service validates supplied re-authentication metadata but does not itself verify the user's password or MFA.
 - There is no managed key storage, rotation, public-key registry, or persisted trusted verification-key lifecycle. Verification currently requires a public PEM supplied by the caller.
-- The CI signature fixture uses dummy bytes solely to test database constraints and immutability. It is not a cryptographic signature and proves no signer identity.
+- CI runs an ephemeral RSA key-pair test for valid signing/verification, wrong-key rejection, payload/signature tampering, stale re-authentication, missing key configuration, and weak-key rejection. The separate database smoke fixture uses dummy bytes solely to test database constraints and immutability; it is not a cryptographic signature and proves no signer identity.
 - No legal/qualified electronic-signature compliance is claimed. Legal requirements vary by jurisdiction and must be independently reviewed.
 - Amendment creation, correction/revocation workflow, PDF rendering, final document canonicalization across PDF and structured report fields, and clinical review are outstanding.
 
