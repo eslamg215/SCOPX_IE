@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and CI validation passed on `fix/database-runtime-security` (workflow run 45856020517). A subsequent trigger-function privilege hardening change is being revalidated. This is a schema and synthetic-test step only; it is not production, legal, or clinical approval.
+Implementation and CI validation passed on `fix/database-runtime-security` at commit `25938e351e5f704fb506e98c49ffb23f769df3aa` (GitHub Actions run `45896398263`, conclusion: success). Both PostgreSQL migration/RLS tests and API/Windows workstation build checks passed. This is a schema and synthetic-test step only; it is not production, legal, or clinical approval.
 
 ## What was added
 
@@ -31,7 +31,7 @@ Implementation and CI validation passed on `fix/database-runtime-security` (work
 - Request submission under active legal hold / unexpired retention without queue insertion.
 - One-open-request uniqueness.
 - Immutable request facts and valid/invalid state transitions.
-- Four-eyes approval with a distinct active tenant member.
+- Requester/reviewer separation with a distinct active tenant member (this is not a two-approver policy).
 - Automatically recorded append-only event history.
 - Cross-tenant RLS isolation for request and event tables.
 - Least-privilege runtime grants and existing retention/legal-hold queue guards.
