@@ -207,3 +207,8 @@ Important: a provider-neutral RSA-PSS-SHA256 signing/verification service and a 
 Migration 011 adds per-hospital retention policy records (disabled until explicitly configured), per-recording legal holds, a guarded deletion queue, and append-only deletion events. The database rejects queueing while a legal hold is active or before an explicit retention deadline. No default retention duration is assumed. The migration is excluded by default and requires `--include-rls-draft --include-retention-draft` in a disposable reviewed database.
 
 No deletion worker, scheduler, storage-object deletion, tombstone execution, two-person approval workflow, or media API activation is included. See `docs/STEP-43-MEDIA-RETENTION-LIFECYCLE.md`. Synthetic data only.
+
+
+## Step 44 — Media retention invariant hardening (draft)
+
+Migration 012 enforces one open deletion request per recording and makes legal-hold placement facts immutable, with a one-time auditable release. It is excluded by default and requires `--include-rls-draft --include-retention-draft --include-retention-hardening-draft`. No deletion worker or object deletion is enabled. See `docs/STEP-44-MEDIA-RETENTION-INVARIANT-HARDENING.md`.
