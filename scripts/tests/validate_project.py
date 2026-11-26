@@ -28,9 +28,10 @@ check('013_media_retention_deadline_stamping.sql' in text and 'include_retention
 check('args.include_retention_draft and args.include_retention_hardening_draft' in text, 'retention stamping opt-in requires both lifecycle and invariant-hardening opt-ins')
 check('args.include_retention_stamping_draft' in text and '014_media_deletion_requests.sql' in text, 'media deletion request migration requires the full retention migration chain')
 program=(API/'Program.cs').read_text(encoding='utf-8')
-check('UseExceptionHandler' in program, 'API has generic exception handler')
-check('AddRateLimiter' in program and 'PermitLimit = 120' in program, 'rate limiting configured in API scaffold')
-check('X-Correlation-ID' in program and 'Content-Security-Policy' in program, 'request correlation and security headers present')
+pipeline=(API/'Security/ApiSecurityPipelineExtensions.cs').read_text(encoding='utf-8')
+check('UseScopxExceptionHandling' in program and 'UseExceptionHandler' in pipeline, 'API has generic exception handler')
+check('AddScopxRateLimiting' in program and 'PermitLimit = 120' in pipeline and 'PermitLimit = 10' in pipeline, 'rate limiting configured in API scaffold')
+check('UseScopxSecurityHeaders' in program and 'X-Correlation-ID' in pipeline and 'Content-Security-Policy' in pipeline, 'request correlation and security headers present')
 check('"/health/ready"' in program and 'SELECT 1' in program, 'API readiness endpoint checks configured database connectivity')
 security=API/'Security'
 check((security/'PasswordHashService.cs').exists(), 'password hashing service file exists')
