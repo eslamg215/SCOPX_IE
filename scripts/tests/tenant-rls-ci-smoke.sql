@@ -149,7 +149,7 @@ RESET ROLE;
 
 -- Exercise the media deletion lifecycle gates as the schema owner in tenant A.
 SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b1', true);
-DO $
+DO $scopx_test$
 BEGIN
     BEGIN
         INSERT INTO public.media_deletion_queue
@@ -161,7 +161,7 @@ BEGIN
         RAISE EXCEPTION 'media deletion queue accepted an asset under legal hold';
     EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
-END $;
+END $scopx_test$;
 
 UPDATE public.media_legal_holds
    SET released_by_user_id = '00000000-0000-0000-0000-0000000000a1',
@@ -182,7 +182,7 @@ SELECT hospital_id, media_id, id, 'requested',
   FROM public.media_deletion_queue
  WHERE media_id = '00000000-0000-0000-0000-0000000000f1';
 
-DO $
+DO $scopx_test$
 BEGIN
     BEGIN
         UPDATE public.media_deletion_events SET event_type = 'object_deleted';
@@ -194,7 +194,7 @@ BEGIN
         RAISE EXCEPTION 'media deletion event DELETE was not rejected';
     EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
-END $;
+END $scopx_test$;
 
 -- Prove role-scope triggers reject cross-scope assignments.
 DO $$
