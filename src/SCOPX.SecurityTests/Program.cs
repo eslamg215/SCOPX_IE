@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using SCOPX.Infrastructure.Hospitals;
 using SCOPX.Infrastructure.Sessions;
 using SCOPX.Infrastructure.Users;
@@ -6,7 +7,6 @@ using SCOPX.Api.Security;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Server.Features;
-using Microsoft.AspNetCore.Server;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
@@ -239,5 +239,263 @@ await RequireThrowsAsync<InvalidOperationException>(
     "media upload scanning fails closed when ClamAV is not configured");
 
 await RunAuthHttpIntegrationTestsAsync();
+
+
+static async Task RunAuthHttpIntegrationTestsAsync()
+{
+    var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>();
+    var userId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+    var disabledId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+    var lockedId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+    var hospitalA = Guid.Parse("20000000-0000-0000-0000-000000000001");
+    var hospitalB = Guid.Parse("20000000-0000-0000-0000-000000000002");
+    const string password = "ScopxTestPass2026";
+    UserRecord MakeUser(Guid id, string email, string status, int failures = 0, DateTimeOffset? lockout = null) =>
+        new(id, email, "Synthetic " + email, status,
+            hasher.HashPassword(new AuthUser { Id = id.ToString("N") }, password), failures, lockout, null);
+
+    var users = new FakeUserRepository([
+        MakeUser(userId, "ACTIVE@EXAMPLE.INVALID", "active"),
+        MakeUser(disabledId, "DISABLED@EXAMPLE.INVALID", "disabled"),
+        MakeUser(lockedId, "LOCKED@EXAMPLE.INVALID", "active", 5, DateTimeOffset.UtcNow.AddMinutes(10))
+    ]);
+    var sessions = new FakeSessionRepository();
+    var memberships = new FakeHospitalMembershipRepository(userId, [
+        new HospitalMembershipRecord(hospitalA, "Synthetic Hospital A", "active",
+            Guid.Parse("30000000-0000-0000-0000-000000000001"), ["doctor"])
+    ]);
+
+    var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+    builder.Logging.ClearProviders();
+    builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
+    builder.Services.AddSingleton<IUserRepository>(users);
+    builder.Services.AddSingleton<ISessionRepository>(sessions);
+    builder.Services.AddSingleton<IHospitalMembershipRepository>(memberships);
+    builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<AuthUser>, Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>>();
+    builder.Services.AddScoped<PasswordHashService>();
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.AddPolicy("api", _ => RateLimitPartition.GetNoLimiter("synthetic-api"));
+        options.AddPolicy("login", _ => RateLimitPartition.GetNoLimiter("synthetic-login"));
+    });
+
+    await using var app = builder.Build();
+    app.UseRateLimiter();
+    app.MapAuthEndpoints();
+    app.MapHospitalContextEndpoints();
+    await app.StartAsync();
+    try
+    {
+        var server = app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>();
+        var address = server.Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+        using var client = new HttpClient { BaseAddress = new Uri(address) };
+
+        static void Check(HttpResponseMessage response, HttpStatusCode expected, string label)
+        {
+            if (response.StatusCode != expected)
+                throw new InvalidOperationException($"FAIL: {label}; expected {(int)expected}, got {(int)response.StatusCode}.");
+            Console.WriteLine("PASS: " + label);
+        }
+
+        using var login = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = "active@example.invalid", password });
+        Check(login, HttpStatusCode.OK, "HTTP login accepts a valid synthetic account");
+        using var loginJson = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
+        var token = loginJson.RootElement.GetProperty("access_token").GetString()
+            ?? throw new InvalidOperationException("Login did not return access_token.");
+        Require(token.Length >= 40, "HTTP login returns a high-entropy bearer token");
+
+        using (var response = await client.GetAsync("/api/v1/auth/me"))
+            Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects missing credentials");
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", "synthetic");
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects non-Bearer authorization");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", new string('z', 48));
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects an unknown token");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.OK, "HTTP /me accepts a valid active session");
+            var body = await response.Content.ReadAsStringAsync();
+            Require(body.Contains(userId.ToString(), StringComparison.OrdinalIgnoreCase),
+                "HTTP /me resolves the authenticated synthetic identity");
+        }
+
+        using var wrongPassword = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = "active@example.invalid", password = "WrongSyntheticPass2026" });
+        using var missingUser = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = "missing@example.invalid", password });
+        using var disabledLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = "disabled@example.invalid", password });
+        using var lockedLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = "locked@example.invalid", password });
+        Check(wrongPassword, HttpStatusCode.Unauthorized, "HTTP login rejects an incorrect password");
+        Check(missingUser, HttpStatusCode.Unauthorized, "HTTP login rejects an unknown account");
+        Check(disabledLogin, HttpStatusCode.Unauthorized, "HTTP login rejects a disabled account");
+        Check(lockedLogin, HttpStatusCode.Unauthorized, "HTTP login rejects a locked account");
+        Require(await wrongPassword.Content.ReadAsStringAsync() == await missingUser.Content.ReadAsStringAsync(),
+            "HTTP login uses the same generic error body for wrong-password and unknown-user cases");
+
+        using (var response = await client.GetAsync("/api/v1/hospitals/mine"))
+            Check(response, HttpStatusCode.Unauthorized, "HTTP hospital list rejects anonymous callers");
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/mine"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.OK, "HTTP hospital list accepts an authenticated caller");
+            var body = await response.Content.ReadAsStringAsync();
+            Require(body.Contains(hospitalA.ToString(), StringComparison.OrdinalIgnoreCase)
+                && !body.Contains(hospitalB.ToString(), StringComparison.OrdinalIgnoreCase),
+                "HTTP hospital list contains only the caller's active membership");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/context"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.BadRequest, "HTTP hospital context requires X-Hospital-ID");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/context"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Add("X-Hospital-ID", hospitalA.ToString());
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.OK, "HTTP hospital context accepts an active membership");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/context"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Add("X-Hospital-ID", hospitalB.ToString());
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Forbidden, "HTTP hospital context denies a tenant without membership");
+        }
+
+        const string expiredToken = "synthetic-expired-session-token-000000000000";
+        sessions.Seed(SessionHash(expiredToken), new SessionRecord(Guid.NewGuid(), userId,
+            DateTimeOffset.UtcNow.AddMinutes(-1), null));
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", expiredToken);
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects an expired session");
+        }
+
+        using (var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/logout"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.OK, "HTTP logout revokes the active session");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects a session after logout");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/logout"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "HTTP logout rejects an already revoked session");
+        }
+
+        const string disabledToken = "synthetic-disabled-account-session-000000000";
+        sessions.Seed(SessionHash(disabledToken), new SessionRecord(Guid.NewGuid(), userId,
+            DateTimeOffset.UtcNow.AddHours(1), null));
+        users.SetStatus(userId, "disabled");
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", disabledToken);
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects a user disabled after session creation");
+        }
+    }
+    finally
+    {
+        await app.StopAsync();
+    }
+}
+
+static string SessionHash(string token) =>
+    Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+
+sealed class FakeUserRepository(IEnumerable<UserRecord> seed) : IUserRepository
+{
+    private readonly Dictionary<Guid, UserRecord> _byId = seed.ToDictionary(x => x.Id);
+    public Task<UserRecord?> FindByNormalizedEmailAsync(string email, CancellationToken ct = default) =>
+        Task.FromResult(_byId.Values.SingleOrDefault(x => x.NormalizedEmail == email));
+    public Task<UserRecord?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(_byId.GetValueOrDefault(id));
+    public Task<UserRecord?> IncrementFailedLoginAsync(Guid id, CancellationToken ct = default)
+    {
+        if (!_byId.TryGetValue(id, out var user)) return Task.FromResult<UserRecord?>(null);
+        var count = user.FailedLoginCount + 1;
+        var until = count >= LoginLockoutPolicy.MaxFailedAttemptsBeforeLockout
+            ? DateTimeOffset.UtcNow.Add(LoginLockoutPolicy.LockoutFor(count)) : user.LockoutUntil;
+        var updated = user with { FailedLoginCount = count, LockoutUntil = until };
+        _byId[id] = updated;
+        return Task.FromResult<UserRecord?>(updated);
+    }
+    public Task<bool> RecordFailedLoginAsync(Guid id, int count, DateTimeOffset? until, CancellationToken ct = default)
+    {
+        if (!_byId.TryGetValue(id, out var user)) return Task.FromResult(false);
+        _byId[id] = user with { FailedLoginCount = count, LockoutUntil = until };
+        return Task.FromResult(true);
+    }
+    public Task<bool> RecordSuccessfulLoginAsync(Guid id, CancellationToken ct = default)
+    {
+        if (!_byId.TryGetValue(id, out var user) || user.Status != "active" || LoginLockoutPolicy.IsLocked(user.LockoutUntil, DateTimeOffset.UtcNow))
+            return Task.FromResult(false);
+        _byId[id] = user with { FailedLoginCount = 0, LockoutUntil = null, LastLoginAt = DateTimeOffset.UtcNow };
+        return Task.FromResult(true);
+    }
+    public void SetStatus(Guid id, string status)
+    {
+        if (_byId.TryGetValue(id, out var user)) _byId[id] = user with { Status = status };
+    }
+}
+
+sealed class FakeSessionRepository : ISessionRepository
+{
+    private readonly Dictionary<string, SessionRecord> _sessions = new(StringComparer.Ordinal);
+    public Task CreateAsync(Guid userId, string hash, DateTimeOffset expiry, CancellationToken ct = default)
+    {
+        _sessions[hash] = new SessionRecord(Guid.NewGuid(), userId, expiry, null);
+        return Task.CompletedTask;
+    }
+    public Task<SessionRecord?> FindActiveByTokenHashAsync(string hash, DateTimeOffset now, CancellationToken ct = default)
+    {
+        if (!_sessions.TryGetValue(hash, out var session) || session.RevokedAt is not null || session.ExpiresAt <= now)
+            return Task.FromResult<SessionRecord?>(null);
+        return Task.FromResult<SessionRecord?>(session);
+    }
+    public Task<bool> RevokeByTokenHashAsync(string hash, DateTimeOffset now, CancellationToken ct = default)
+    {
+        if (!_sessions.TryGetValue(hash, out var session) || session.RevokedAt is not null) return Task.FromResult(false);
+        _sessions[hash] = session with { RevokedAt = now };
+        return Task.FromResult(true);
+    }
+    public void Seed(string hash, SessionRecord session) => _sessions[hash] = session;
+}
+
+sealed class FakeHospitalMembershipRepository(Guid ownerId, IEnumerable<HospitalMembershipRecord> seed) : IHospitalMembershipRepository
+{
+    private readonly List<HospitalMembershipRecord> _memberships = [.. seed];
+    public Task<IReadOnlyList<HospitalMembershipRecord>> ListActiveForUserAsync(Guid userId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<HospitalMembershipRecord>>(userId == ownerId
+            ? _memberships.Where(x => x.MembershipStatus == "active").ToArray()
+            : []);
+    public Task<HospitalMembershipRecord?> FindActiveForUserAndHospitalAsync(Guid userId, Guid hospitalId, CancellationToken ct = default) =>
+        Task.FromResult(userId == ownerId
+            ? _memberships.SingleOrDefault(x => x.HospitalId == hospitalId && x.MembershipStatus == "active")
+            : null);
+}
 
 Console.WriteLine("All SCOPX security tests passed.");
