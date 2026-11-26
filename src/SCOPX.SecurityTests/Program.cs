@@ -299,6 +299,17 @@ static async Task RunAuthHttpIntegrationTestsAsync()
             Console.WriteLine("PASS: " + label);
         }
 
+        using (var malformed = await client.PostAsync("/api/v1/auth/login",
+            new StringContent("{", Encoding.UTF8, "application/json")))
+            Check(malformed, HttpStatusCode.BadRequest, "HTTP login rejects malformed JSON");
+        using (var wrongContentType = await client.PostAsync("/api/v1/auth/login",
+            new StringContent("{\\"email\\":\\"active@example.invalid\\"}", Encoding.UTF8, "text/plain")))
+            Check(wrongContentType, HttpStatusCode.UnsupportedMediaType, "HTTP login rejects unsupported content types");
+        var oversizedLoginBody = "{\\"email\\":\\"" + new string('a', 17 * 1024) + "\\",\\"password\\":\\"ScopxTestPass2026\\"}";
+        using (var oversized = await client.PostAsync("/api/v1/auth/login",
+            new StringContent(oversizedLoginBody, Encoding.UTF8, "application/json")))
+            Check(oversized, HttpStatusCode.RequestEntityTooLarge, "HTTP login rejects request bodies larger than 16 KiB");
+
         using var login = await client.PostAsJsonAsync("/api/v1/auth/login",
             new { email = "active@example.invalid", password });
         Check(login, HttpStatusCode.OK, "HTTP login accepts a valid synthetic account");
@@ -456,7 +467,7 @@ static async Task RunAuthHttpIntegrationTestsAsync()
             Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects a user disabled after session creation");
         }
 
-        for (var attempt = 6; attempt <= 10; attempt++)
+        for (var attempt = 9; attempt <= 10; attempt++)
         {
             using var limitedLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
                 new { email = "not-present@example.invalid", password = "NoSuchSyntheticPassword2026" });
