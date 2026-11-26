@@ -43,10 +43,11 @@ VALUES
  ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000e1', 'image', 'ci/a.jpg', 'a.jpg', 'image/jpeg', 1, repeat('a',64)),
  ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000e2', 'image', 'ci/b.jpg', 'b.jpg', 'image/jpeg', 1, repeat('b',64));
 
-INSERT INTO public.procedure_reports (id, hospital_id, procedure_id, created_by_membership_id, report_body)
+INSERT INTO public.procedure_reports
+    (id, hospital_id, procedure_id, created_by_membership_id, report_body, report_body_sha256)
 VALUES
- ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000c1', 'synthetic A'),
- ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000c2', 'synthetic B');
+ ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000c1', 'synthetic A', encode(digest(convert_to('synthetic A', 'UTF8'), 'sha256'), 'hex')),
+ ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000c2', 'synthetic B', encode(digest(convert_to('synthetic B', 'UTF8'), 'sha256'), 'hex'));
 
 INSERT INTO public.audit_events (hospital_id, actor_user_id, event_type, target_type, target_id, details)
 VALUES
