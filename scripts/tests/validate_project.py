@@ -151,7 +151,7 @@ check(protection.exists(), 'authenticated media protection module exists')
 if protection.exists():
     mp=protection.read_text(encoding='utf-8')
     check('new AesGcm(key, TagSize)' in mp and 'RandomNumberGenerator.GetBytes(NonceSize)' in mp, 'media encryption uses AES-GCM with a fresh nonce')
-    check('MediaStorage:EncryptionKeyBase64' in mp and 'key.Length != 32' in mp, 'media encryption requires a configured 256-bit key')
+    check('MediaStorage:ActiveKeyId' in mp and 'MediaStorage:Keys:' in mp and 'key.Length != 32' in mp, 'media encryption requires a configured 256-bit keyring and active key ID')
     check('AssociatedData' in mp and 'CryptographicOperations.ZeroMemory(key)' in mp, 'media encryption binds tenant and asset identity and clears key buffers')
     scanner_file=API/'Media/ClamAvMediaMalwareScanner.cs'
 check(scanner_file.exists() and 'ClamAvMediaMalwareScanner' in program, 'ClamAV malware scanner adapter is registered')
@@ -194,6 +194,7 @@ if security_tests.exists():
     st=security_tests.read_text(encoding='utf-8')
     check('tampered signature bytes are rejected' in st and 'changed document digest invalidates the signature' in st, 'report-signing tests cover signature and payload tampering')
     check('ClamAV INSTREAM clean response is accepted' in st and 'ClamAV INSTREAM infected response is rejected' in st, 'media security tests cover ClamAV clean and infected responses')
+    check('rotated keyring retains decryption access' in st and 'ciphertext cannot be moved across hospital tenants' in st, 'media security tests cover key rotation and tenant-bound encryption')
     check('no private key is configured' in st and 'smaller than 2048 bits' in st, 'report-signing tests cover fail-closed key configuration and minimum strength')
 
 report_smoke=(ROOT/'scripts/tests/tenant-rls-ci-smoke.sql').read_text(encoding='utf-8')
