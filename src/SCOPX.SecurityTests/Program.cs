@@ -604,8 +604,10 @@ static async Task RunPostgresHttpIntegrationTestsAsync()
             }
             var persistedUser = await new NpgsqlUserRepository(runtimeConnection)
                 .FindByNormalizedEmailAsync("PG-AUTH-A@EXAMPLE.INVALID");
-            Require(persistedUser?.FailedLoginCount == LoginLockoutPolicy.MaxFailedAttemptsBeforeLockout
-                && persistedUser.LockoutUntil > DateTimeOffset.UtcNow,
+            Require(persistedUser is not null
+                && persistedUser.FailedLoginCount == LoginLockoutPolicy.MaxFailedAttemptsBeforeLockout
+                && persistedUser.LockoutUntil is DateTimeOffset lockoutUntil
+                && lockoutUntil > DateTimeOffset.UtcNow,
                 "PostgreSQL repository persists the failed-login counter and active lockout deadline");
             using (var lockedAfterFailures = await client.PostAsJsonAsync("/api/v1/auth/login",
                 new { email = "pg-auth-a@example.invalid", password }))
