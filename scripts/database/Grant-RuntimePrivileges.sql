@@ -100,3 +100,21 @@ BEGIN
         EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE ON TABLE public.media_deletion_events FROM scopx_runtime';
     END IF;
 END $$;
+
+-- Optional media deletion request workflow (migration 014). The runtime can
+-- submit and move requests through its narrow state column grant. Event rows
+-- are emitted only by the database trigger; direct event insertion is denied.
+DO $$
+BEGIN
+    IF to_regclass('public.media_deletion_requests') IS NOT NULL THEN
+        EXECUTE 'REVOKE ALL ON TABLE public.media_deletion_requests FROM PUBLIC';
+        EXECUTE 'GRANT SELECT, INSERT ON TABLE public.media_deletion_requests TO scopx_runtime';
+        EXECUTE 'GRANT UPDATE (status, decision_reason) ON TABLE public.media_deletion_requests TO scopx_runtime';
+        EXECUTE 'REVOKE DELETE, TRUNCATE ON TABLE public.media_deletion_requests FROM scopx_runtime';
+    END IF;
+    IF to_regclass('public.media_deletion_request_events') IS NOT NULL THEN
+        EXECUTE 'REVOKE ALL ON TABLE public.media_deletion_request_events FROM PUBLIC';
+        EXECUTE 'GRANT SELECT ON TABLE public.media_deletion_request_events TO scopx_runtime';
+        EXECUTE 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE public.media_deletion_request_events FROM scopx_runtime';
+    END IF;
+END $$;
