@@ -85,7 +85,17 @@ BEGIN
             END IF;
         END LOOP;
 
-        IF NOT has_table_privilege(runtime_role, 'public.media_deletion_requests', 'SELECT')
+        IF has_table_privilege(runtime_role, 'public.media_deletion_requests', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'id', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'hospital_id', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'media_id', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'status', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'reason', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'requested_by_user_id', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'requested_at', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'decided_at', 'SELECT')
+           OR has_column_privilege(runtime_role, 'public.media_deletion_requests', 'reviewer_user_id', 'SELECT')
+           OR has_column_privilege(runtime_role, 'public.media_deletion_requests', 'decision_reason', 'SELECT')
            OR NOT has_table_privilege(runtime_role, 'public.media_deletion_requests', 'INSERT')
            OR has_table_privilege(runtime_role, 'public.media_deletion_requests', 'UPDATE')
            OR has_table_privilege(runtime_role, 'public.media_deletion_requests', 'DELETE')
@@ -96,12 +106,18 @@ BEGIN
             RAISE EXCEPTION 'Runtime role media_deletion_requests grants are not least-privilege';
         END IF;
 
-        IF NOT has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'SELECT')
+        IF has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_request_events', 'request_id', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_request_events', 'from_status', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_request_events', 'to_status', 'SELECT')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_request_events', 'occurred_at', 'SELECT')
+           OR has_column_privilege(runtime_role, 'public.media_deletion_request_events', 'actor_user_id', 'SELECT')
+           OR has_column_privilege(runtime_role, 'public.media_deletion_request_events', 'reason', 'SELECT')
            OR has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'INSERT')
            OR has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'UPDATE')
            OR has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'DELETE')
            OR has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'TRUNCATE') THEN
-            RAISE EXCEPTION 'Runtime role must have SELECT-only access to media deletion request events';
+            RAISE EXCEPTION 'Runtime role media deletion request event grants are not least-privilege';
         END IF;
     END IF;
 
