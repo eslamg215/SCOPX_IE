@@ -185,7 +185,7 @@ SELECT hospital_id, id, report_version, report_body_sha256,
 FROM public.procedure_reports
 WHERE id = '10000000-0000-0000-0000-000000000001';
 
-DO $
+DO $$
 DECLARE report_status text;
 BEGIN
     SELECT status INTO report_status FROM public.procedure_reports
@@ -222,7 +222,7 @@ BEGIN
         RAISE EXCEPTION 'signature artifact TRUNCATE was not rejected';
     EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
-END $;
+END $$;
 
 
 ROLLBACK;
