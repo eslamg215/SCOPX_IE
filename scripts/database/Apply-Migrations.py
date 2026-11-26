@@ -12,6 +12,7 @@ parser.add_argument("--include-audit-hardening-draft", action="store_true", help
 parser.add_argument("--include-tenant-hardening-draft", action="store_true", help="Include tenant hardening migrations 008-009; requires --include-rls-draft and a disposable reviewed DB.")
 parser.add_argument("--include-report-signing-draft", action="store_true", help="Include report versioning/signature evidence migration 010; requires --include-rls-draft and a disposable reviewed DB.")
 parser.add_argument("--include-retention-draft", action="store_true", help="Include medical-media retention/deletion lifecycle migration 011; requires --include-rls-draft and a disposable reviewed DB.")
+parser.add_argument("--include-retention-hardening-draft", action="store_true", help="Include media retention invariant hardening migration 012; requires --include-retention-draft.")
 args = parser.parse_args()
 if args.include_tenant_hardening_draft and not args.include_rls_draft:
     sys.exit("ERROR: --include-tenant-hardening-draft requires --include-rls-draft.")
@@ -19,6 +20,8 @@ if args.include_report_signing_draft and not args.include_rls_draft:
     sys.exit("ERROR: --include-report-signing-draft requires --include-rls-draft.")
 if args.include_retention_draft and not args.include_rls_draft:
     sys.exit("ERROR: --include-retention-draft requires --include-rls-draft.")
+if args.include_retention_hardening_draft and not args.include_retention_draft:
+    sys.exit("ERROR: --include-retention-hardening-draft requires --include-retention-draft.")
 if not os.environ.get("PGDATABASE"):
     sys.exit("ERROR: Set PGDATABASE (and PGHOST/PGPORT/PGUSER/PGPASSWORD as needed) first.")
 if not shutil.which("psql"):
@@ -38,7 +41,9 @@ if not args.include_tenant_hardening_draft:
 if not args.include_report_signing_draft:
     files = [f for f in files if f.name != "010_report_versioning_signatures.sql"]
 if not args.include_retention_draft:
-    files = [f for f in files if f.name != "011_media_retention_lifecycle.sql"]
+    files = [f for f in files if f.name not in {"011_media_retention_lifecycle.sql", "012_media_retention_invariant_hardening.sql"}]
+elif not args.include_retention_hardening_draft:
+    files = [f for f in files if f.name != "012_media_retention_invariant_hardening.sql"]
 
 psql_base = ["psql", "--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--dbname", os.environ["PGDATABASE"]]
 def run_sql(sql: str):
