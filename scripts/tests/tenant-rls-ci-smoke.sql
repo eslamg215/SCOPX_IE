@@ -168,12 +168,43 @@ UPDATE public.media_legal_holds
        released_at = now(), release_reason = 'CI synthetic hold release'
  WHERE id = '20000000-0000-0000-0000-000000000001';
 
+DO $scopx_test$
+BEGIN
+    BEGIN
+        UPDATE public.media_legal_holds
+           SET release_reason = 'tampered release reason'
+         WHERE id = '20000000-0000-0000-0000-000000000001';
+        RAISE EXCEPTION 'released legal hold was mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+        DELETE FROM public.media_legal_holds
+         WHERE id = '20000000-0000-0000-0000-000000000001';
+        RAISE EXCEPTION 'legal hold record deletion was allowed';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+END $scopx_test$;
+
 INSERT INTO public.media_deletion_queue
     (hospital_id, media_id, reason, requested_by_user_id, not_before)
 VALUES
  ('00000000-0000-0000-0000-0000000000b1',
   '00000000-0000-0000-0000-0000000000f1', 'CI eligible synthetic deletion',
   '00000000-0000-0000-0000-0000000000a1', now() - interval '1 day');
+
+DO $scopx_test$
+BEGIN
+    BEGIN
+        INSERT INTO public.media_deletion_queue
+            (hospital_id, media_id, reason, requested_by_user_id, not_before)
+        VALUES
+            ('00000000-0000-0000-0000-0000000000b1',
+             '00000000-0000-0000-0000-0000000000f1', 'CI duplicate active request',
+             '00000000-0000-0000-0000-0000000000a1', now() - interval '1 day');
+        RAISE EXCEPTION 'duplicate active deletion request was accepted';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+END $scopx_test$;
 
 INSERT INTO public.media_deletion_events
     (hospital_id, media_id, queue_id, event_type, actor_user_id, details)
