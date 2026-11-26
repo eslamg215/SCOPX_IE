@@ -15,6 +15,23 @@ public sealed class NpgsqlMediaRepository(string connectionString) : IMediaRepos
  { await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var t=await c.BeginTransactionAsync(ct); await SetTenant(c,t,hospitalId,ct); await using var cmd=new NpgsqlCommand("SELECT id,procedure_id,media_type,file_name,content_type,file_size_bytes,sha256_hex,created_at,storage_key FROM media_assets WHERE hospital_id=@h AND id=@id",c,t);cmd.Parameters.AddWithValue("h",hospitalId);cmd.Parameters.AddWithValue("id",mediaId); await using var r=await cmd.ExecuteReaderAsync(ct); MediaAssetRecord? a=null;string? key=null;if(await r.ReadAsync(ct)){a=Read(r);key=r.GetString(8);}await r.CloseAsync();
  await NpgsqlAuditEventWriter.WriteAsync(c,t,hospitalId,actorUserId,"media.read_attempt","media_asset",mediaId,new{found=a is not null},ct);
  await t.CommitAsync(ct);return(a,key); }
+ public async Task RecordDownloadAsync(Guid hospitalId,Guid actorUserId,Guid mediaId,CancellationToken ct)
+ {
+  await using var c=new NpgsqlConnection(connectionString);
+  await c.OpenAsync(ct);
+  await using var t=await c.BeginTransactionAsync(ct);
+  await SetTenant(c,t,hospitalId,ct);
+  await using var exists=new NpgsqlCommand("SELECT EXISTS(SELECT 1 FROM media_assets WHERE hospital_id=@h AND id=@id)",c,t);
+  exists.Parameters.AddWithValue("h",hospitalId);
+  exists.Parameters.AddWithValue("id",mediaId);
+  if (!(bool)(await exists.ExecuteScalarAsync(ct)??false))
+  {
+   await t.RollbackAsync(ct);
+   throw new InvalidOperationException("Media asset is no longer available in this hospital.");
+  }
+  await NpgsqlAuditEventWriter.WriteAsync(c,t,hospitalId,actorUserId,"media.downloaded","media_asset",mediaId,new { integrity_verified=true },ct);
+  await t.CommitAsync(ct);
+ }
  private static async Task SetTenant(NpgsqlConnection c,NpgsqlTransaction t,Guid h,CancellationToken ct){await using var cmd=new NpgsqlCommand("SELECT set_config('scopx.hospital_id',@h,true)",c,t);cmd.Parameters.AddWithValue("h",h.ToString());await cmd.ExecuteNonQueryAsync(ct);}
  private static MediaAssetRecord Read(NpgsqlDataReader r)=>new(r.GetGuid(0),r.GetGuid(1),r.GetString(2),r.IsDBNull(3)?"file":r.GetString(3),r.IsDBNull(4)?"application/octet-stream":r.GetString(4),r.GetInt64(5),r.GetString(6).Trim(),r.GetFieldValue<DateTimeOffset>(7));
 }
