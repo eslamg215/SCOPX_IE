@@ -600,21 +600,45 @@ static async Task RunPostgresHttpIntegrationTestsAsync()
     {
         await using var cleanup = new NpgsqlConnection(ownerConnection);
         await cleanup.OpenAsync();
-        await using var command = new NpgsqlCommand(@"
-DELETE FROM public.membership_roles WHERE membership_id IN (@membership_a,@membership_b);
-DELETE FROM public.hospital_memberships WHERE id IN (@membership_a,@membership_b);
-DELETE FROM public.user_sessions WHERE user_id IN (@user_a,@user_b,@disabled,@locked);
-DELETE FROM public.hospitals WHERE id IN (@hospital_a,@hospital_b);
-DELETE FROM public.users WHERE id IN (@user_a,@user_b,@disabled,@locked);", cleanup);
-        command.Parameters.AddWithValue("membership_a", membershipA);
-        command.Parameters.AddWithValue("membership_b", membershipB);
-        command.Parameters.AddWithValue("user_a", userA);
-        command.Parameters.AddWithValue("user_b", userB);
-        command.Parameters.AddWithValue("disabled", disabledUser);
-        command.Parameters.AddWithValue("locked", lockedUser);
-        command.Parameters.AddWithValue("hospital_a", hospitalA);
-        command.Parameters.AddWithValue("hospital_b", hospitalB);
-        await command.ExecuteNonQueryAsync();
+        await using (var deleteRoles = new NpgsqlCommand(
+            "DELETE FROM public.membership_roles WHERE membership_id IN (@a,@b)", cleanup))
+        {
+            deleteRoles.Parameters.AddWithValue("a", membershipA);
+            deleteRoles.Parameters.AddWithValue("b", membershipB);
+            await deleteRoles.ExecuteNonQueryAsync();
+        }
+        await using (var deleteMemberships = new NpgsqlCommand(
+            "DELETE FROM public.hospital_memberships WHERE id IN (@a,@b)", cleanup))
+        {
+            deleteMemberships.Parameters.AddWithValue("a", membershipA);
+            deleteMemberships.Parameters.AddWithValue("b", membershipB);
+            await deleteMemberships.ExecuteNonQueryAsync();
+        }
+        await using (var deleteSessions = new NpgsqlCommand(
+            "DELETE FROM public.user_sessions WHERE user_id IN (@a,@b,@c,@d)", cleanup))
+        {
+            deleteSessions.Parameters.AddWithValue("a", userA);
+            deleteSessions.Parameters.AddWithValue("b", userB);
+            deleteSessions.Parameters.AddWithValue("c", disabledUser);
+            deleteSessions.Parameters.AddWithValue("d", lockedUser);
+            await deleteSessions.ExecuteNonQueryAsync();
+        }
+        await using (var deleteHospitals = new NpgsqlCommand(
+            "DELETE FROM public.hospitals WHERE id IN (@a,@b)", cleanup))
+        {
+            deleteHospitals.Parameters.AddWithValue("a", hospitalA);
+            deleteHospitals.Parameters.AddWithValue("b", hospitalB);
+            await deleteHospitals.ExecuteNonQueryAsync();
+        }
+        await using (var deleteUsers = new NpgsqlCommand(
+            "DELETE FROM public.users WHERE id IN (@a,@b,@c,@d)", cleanup))
+        {
+            deleteUsers.Parameters.AddWithValue("a", userA);
+            deleteUsers.Parameters.AddWithValue("b", userB);
+            deleteUsers.Parameters.AddWithValue("c", disabledUser);
+            deleteUsers.Parameters.AddWithValue("d", lockedUser);
+            await deleteUsers.ExecuteNonQueryAsync();
+        }
     }
 }
 
