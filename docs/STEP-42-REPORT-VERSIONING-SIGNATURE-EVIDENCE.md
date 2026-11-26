@@ -14,9 +14,10 @@
 
 ## Explicitly not complete
 
-- A provider-neutral RSA-PSS-SHA256 signing/verification service now exists. It signs a canonical payload binding tenant, report, version, document digest, signer membership, re-authentication time/method, and key ID. It requires `Reports:SigningPrivateKeyPem` and `Reports:SigningKeyId`; without them it fails closed.
-- There is still no signing API endpoint and no report-signing UI. The signing service is not yet wired to the report repository or signature table.
-- There is no strong re-authentication flow wired to report signing; the service validates supplied re-authentication metadata but does not itself verify the user's password or MFA.
+- A provider-neutral RSA-PSS-SHA256 signing/verification service signs a canonical payload binding tenant, report, version, document digest, signer membership, re-authentication time/method, and key ID. It requires `Reports:SigningPrivateKeyPem` and `Reports:SigningKeyId`; without them it fails closed.
+- A report-signing route implementation now re-authenticates the doctor with the current password, applies the login rate limit and account lockout, checks the expected reviewed version, creates the signature, and asks the repository to persist the signature and audit event in one transaction.
+- The signing route is deliberately not mapped by the API host, and there is no report-signing UI. The clinical workflow remains inaccessible until independent review and activation.
+- Password re-authentication is implemented in the disabled route; MFA/hardware-key re-authentication is not. The signing service validates the supplied re-authentication timestamp but does not itself verify user credentials.
 - There is no managed key storage, rotation, public-key registry, or persisted trusted verification-key lifecycle. Verification currently requires a public PEM supplied by the caller.
 - CI runs an ephemeral RSA key-pair test for valid signing/verification, wrong-key rejection, payload/signature tampering, stale re-authentication, missing key configuration, and weak-key rejection. The separate database smoke fixture uses dummy bytes solely to test database constraints and immutability; it is not a cryptographic signature and proves no signer identity.
 - No legal/qualified electronic-signature compliance is claimed. Legal requirements vary by jurisdiction and must be independently reviewed.
