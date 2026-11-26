@@ -129,7 +129,7 @@ VALUES
      'image', 'ci/runtime-stamped.jpg', 'runtime-stamped.jpg',
      'image/jpeg', 1, repeat('d',64), now() - interval '100 years');
 
-DO $
+DO $scopx_runtime_test$
 DECLARE stamped_created_at timestamptz; stamped_deadline timestamptz;
 BEGIN
     SELECT created_at, retention_until
@@ -148,9 +148,9 @@ BEGIN
         RAISE EXCEPTION 'runtime role changed an immutable retention deadline';
     EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
-END $;
+END $scopx_runtime_test$;
 
-DO $
+DO $scopx_runtime_test$
 DECLARE n bigint;
 BEGIN
     SELECT count(*) INTO n FROM public.hospitals;
