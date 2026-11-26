@@ -43,6 +43,18 @@ VALUES
  ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000e1', 'image', 'ci/a.jpg', 'a.jpg', 'image/jpeg', 1, repeat('a',64)),
  ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000e2', 'image', 'ci/b.jpg', 'b.jpg', 'image/jpeg', 1, repeat('b',64));
 
+UPDATE public.media_assets SET retention_until = now() - interval '1 day';
+INSERT INTO public.media_retention_policies (hospital_id, enabled, retention_days, policy_reference)
+VALUES
+ ('00000000-0000-0000-0000-0000000000b1', true, 3650, 'CI synthetic policy A'),
+ ('00000000-0000-0000-0000-0000000000b2', true, 3650, 'CI synthetic policy B');
+INSERT INTO public.media_legal_holds
+    (id, hospital_id, media_id, hold_reason, placed_by_user_id)
+VALUES
+ ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b1',
+  '00000000-0000-0000-0000-0000000000f1', 'CI synthetic legal hold',
+  '00000000-0000-0000-0000-0000000000a1');
+
 INSERT INTO public.procedure_reports
     (id, hospital_id, procedure_id, created_by_membership_id, report_body, report_body_sha256)
 VALUES
@@ -80,6 +92,12 @@ BEGIN
     IF n <> 1 THEN RAISE EXCEPTION 'report-version RLS failed for tenant A: %', n; END IF;
     SELECT count(*) INTO n FROM public.procedure_report_signatures;
     IF n <> 0 THEN RAISE EXCEPTION 'report-signature RLS failed for tenant A: %', n; END IF;
+    SELECT count(*) INTO n FROM public.media_retention_policies;
+    IF n <> 1 THEN RAISE EXCEPTION 'media retention policy RLS failed for tenant A: %', n; END IF;
+    SELECT count(*) INTO n FROM public.media_legal_holds;
+    IF n <> 1 THEN RAISE EXCEPTION 'media legal-hold RLS failed for tenant A: %', n; END IF;
+    SELECT count(*) INTO n FROM public.media_deletion_queue;
+    IF n <> 0 THEN RAISE EXCEPTION 'media deletion queue RLS failed for tenant A: %', n; END IF;
     SELECT count(*) INTO n FROM public.audit_events;
     IF n <> 1 THEN RAISE EXCEPTION 'audit RLS failed for tenant A: %', n; END IF;
 
@@ -117,11 +135,66 @@ BEGIN
     IF n <> 1 THEN RAISE EXCEPTION 'report-version RLS failed for tenant B: %', n; END IF;
     SELECT count(*) INTO n FROM public.procedure_report_signatures;
     IF n <> 0 THEN RAISE EXCEPTION 'report-signature RLS failed for tenant B: %', n; END IF;
+    SELECT count(*) INTO n FROM public.media_retention_policies;
+    IF n <> 1 THEN RAISE EXCEPTION 'media retention policy RLS failed for tenant B: %', n; END IF;
+    SELECT count(*) INTO n FROM public.media_legal_holds;
+    IF n <> 0 THEN RAISE EXCEPTION 'media legal-hold tenant isolation failed for tenant B: %', n; END IF;
+    SELECT count(*) INTO n FROM public.media_deletion_queue;
+    IF n <> 0 THEN RAISE EXCEPTION 'media deletion queue RLS failed for tenant B: %', n; END IF;
     SELECT count(*) INTO n FROM public.audit_events;
     IF n <> 1 THEN RAISE EXCEPTION 'audit RLS failed for tenant B: %', n; END IF;
 END $$;
 
 RESET ROLE;
+
+-- Exercise the media deletion lifecycle gates as the schema owner in tenant A.
+SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b1', true);
+DO $
+BEGIN
+    BEGIN
+        INSERT INTO public.media_deletion_queue
+            (hospital_id, media_id, reason, requested_by_user_id, not_before)
+        VALUES
+            ('00000000-0000-0000-0000-0000000000b1',
+             '00000000-0000-0000-0000-0000000000f1', 'CI hold-block test',
+             '00000000-0000-0000-0000-0000000000a1', now());
+        RAISE EXCEPTION 'media deletion queue accepted an asset under legal hold';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+END $;
+
+UPDATE public.media_legal_holds
+   SET released_by_user_id = '00000000-0000-0000-0000-0000000000a1',
+       released_at = now(), release_reason = 'CI synthetic hold release'
+ WHERE id = '20000000-0000-0000-0000-000000000001';
+
+INSERT INTO public.media_deletion_queue
+    (hospital_id, media_id, reason, requested_by_user_id, not_before)
+VALUES
+ ('00000000-0000-0000-0000-0000000000b1',
+  '00000000-0000-0000-0000-0000000000f1', 'CI eligible synthetic deletion',
+  '00000000-0000-0000-0000-0000000000a1', now() - interval '1 day');
+
+INSERT INTO public.media_deletion_events
+    (hospital_id, media_id, queue_id, event_type, actor_user_id, details)
+SELECT hospital_id, media_id, id, 'requested',
+       '00000000-0000-0000-0000-0000000000a1', '{"synthetic":true}'::jsonb
+  FROM public.media_deletion_queue
+ WHERE media_id = '00000000-0000-0000-0000-0000000000f1';
+
+DO $
+BEGIN
+    BEGIN
+        UPDATE public.media_deletion_events SET event_type = 'object_deleted';
+        RAISE EXCEPTION 'media deletion event UPDATE was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+        DELETE FROM public.media_deletion_events;
+        RAISE EXCEPTION 'media deletion event DELETE was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+END $;
 
 -- Prove role-scope triggers reject cross-scope assignments.
 DO $$
