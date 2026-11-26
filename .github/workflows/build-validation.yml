@@ -77,7 +77,9 @@ jobs:
             "src/SCOPX.Infrastructure/Database/Migrations/008_role_scope_enforcement.sql",
             "src/SCOPX.Infrastructure/Database/Migrations/009_hospital_directory_rls.sql",
             "src/SCOPX.Infrastructure/Database/Migrations/010_report_versioning_signatures.sql",
-            "src/SCOPX.Infrastructure/Database/Migrations/011_media_retention_lifecycle.sql"
+            "src/SCOPX.Infrastructure/Database/Migrations/011_media_retention_lifecycle.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/012_media_retention_invariant_hardening.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/013_media_retention_deadline_stamping.sql"
           )
           foreach ($file in $required) {
             if (-not (Test-Path $file)) { throw "Missing migration: $file" }
@@ -121,7 +123,7 @@ jobs:
           sudo apt-get install --yes postgresql-client
 
       - name: Apply all reviewed draft migrations to disposable CI database
-        run: python scripts/database/Apply-Migrations.py --include-rls-draft --include-auth-draft --include-audit-hardening-draft --include-tenant-hardening-draft --include-report-signing-draft --include-retention-draft --include-retention-hardening-draft
+        run: python scripts/database/Apply-Migrations.py --include-rls-draft --include-auth-draft --include-audit-hardening-draft --include-tenant-hardening-draft --include-report-signing-draft --include-retention-draft --include-retention-hardening-draft --include-retention-stamping-draft
 
       - name: Create least-privilege runtime role
         run: psql --no-psqlrc --set ON_ERROR_STOP=1 --command "CREATE ROLE scopx_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD 'ci-only-password';"
