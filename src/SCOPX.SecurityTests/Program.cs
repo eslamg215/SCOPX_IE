@@ -270,6 +270,10 @@ static async Task RunAuthHttpIntegrationTestsAsync()
     ]);
 
     var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["Cors:AllowedOrigins:0"] = "https://app.scopx.test"
+    });
     builder.Logging.ClearProviders();
     builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
     builder.Services.AddSingleton<IUserRepository>(users);
@@ -278,10 +282,12 @@ static async Task RunAuthHttpIntegrationTestsAsync()
     builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<AuthUser>, Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>>();
     builder.Services.AddScoped<PasswordHashService>();
     builder.Services.AddScopxRateLimiting();
+    builder.Services.AddScopxCors(builder.Configuration);
 
     await using var app = builder.Build();
     app.UseScopxExceptionHandling();
     app.UseScopxSecurityHeaders();
+    app.UseCors("scopx");
     app.UseRateLimiter();
     app.MapAuthEndpoints();
     app.MapHospitalContextEndpoints();
