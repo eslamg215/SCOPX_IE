@@ -14,6 +14,7 @@ parser.add_argument("--include-report-signing-draft", action="store_true", help=
 parser.add_argument("--include-retention-draft", action="store_true", help="Include medical-media retention/deletion lifecycle migration 011; requires --include-rls-draft and a disposable reviewed DB.")
 parser.add_argument("--include-retention-hardening-draft", action="store_true", help="Include media retention invariant hardening migration 012; requires --include-retention-draft.")
 parser.add_argument("--include-retention-stamping-draft", action="store_true", help="Include new-media retention deadline stamping migration 013; requires migrations 011 and 012 opt-ins.")
+parser.add_argument("--include-media-deletion-requests-draft", action="store_true", help="Include media deletion request workflow migration 014; requires migrations 011-013 opt-ins.")
 args = parser.parse_args()
 if args.include_tenant_hardening_draft and not args.include_rls_draft:
     sys.exit("ERROR: --include-tenant-hardening-draft requires --include-rls-draft.")
@@ -25,6 +26,8 @@ if args.include_retention_hardening_draft and not args.include_retention_draft:
     sys.exit("ERROR: --include-retention-hardening-draft requires --include-retention-draft.")
 if args.include_retention_stamping_draft and not (args.include_retention_draft and args.include_retention_hardening_draft):
     sys.exit("ERROR: --include-retention-stamping-draft requires --include-retention-draft and --include-retention-hardening-draft.")
+if args.include_media_deletion_requests_draft and not (args.include_retention_draft and args.include_retention_hardening_draft and args.include_retention_stamping_draft):
+    sys.exit("ERROR: --include-media-deletion-requests-draft requires --include-retention-draft, --include-retention-hardening-draft, and --include-retention-stamping-draft.")
 if not os.environ.get("PGDATABASE"):
     sys.exit("ERROR: Set PGDATABASE (and PGHOST/PGPORT/PGUSER/PGPASSWORD as needed) first.")
 if not shutil.which("psql"):
@@ -49,6 +52,8 @@ elif not args.include_retention_hardening_draft:
     files = [f for f in files if f.name != "012_media_retention_invariant_hardening.sql"]
 if not args.include_retention_stamping_draft:
     files = [f for f in files if f.name != "013_media_retention_deadline_stamping.sql"]
+if not args.include_media_deletion_requests_draft:
+    files = [f for f in files if f.name != "014_media_deletion_requests.sql"]
 
 psql_base = ["psql", "--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--dbname", os.environ["PGDATABASE"]]
 def run_sql(sql: str):
