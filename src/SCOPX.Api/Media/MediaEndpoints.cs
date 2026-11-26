@@ -42,49 +42,55 @@ public static class MediaEndpoints
                 if (file is null || file.Length <= 0 || file.Length > MaxBytes)
                     return Results.BadRequest(new { error = "invalid_file_size", maxBytes = MaxBytes });
 
-                var extension = Path.GetExtension(file.FileName);
-                var safeName = Path.GetFileName(file.FileName);
+                var normalizedName = file.FileName.Replace('\\\\', '/');
+                var safeName = Path.GetFileName(normalizedName);
+                var extension = Path.GetExtension(safeName);
                 if (string.IsNullOrWhiteSpace(safeName) || safeName.Length > 255)
                     return Results.BadRequest(new { error = "invalid_file_name" });
-
-                var mediaId = Guid.NewGuid();
-                var plaintext = new byte[checked((int)file.Length)];
-                await using (var input = file.OpenReadStream())
-                    await input.ReadExactlyAsync(plaintext, ct);
-
-                if (!MediaFileSignatureValidator.Matches(extension, plaintext, out var mediaType, out var contentType))
-                    return Results.BadRequest(new { error = "file_signature_mismatch" });
-
-                try
-                {
-                    if (!await scanner.IsCleanAsync(plaintext, ct))
-                        return Results.UnprocessableEntity(new { error = "malware_detected" });
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    logger.LogWarning("Media malware scanning is unavailable ({ExceptionType}); upload rejected.", ex.GetType().Name);
-                    return Results.Json(new { error = "media_scanning_unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                }
 
                 var root = context.RequestServices.GetRequiredService<IConfiguration>()["MediaStorage:Root"];
                 if (string.IsNullOrWhiteSpace(root))
                     return Results.Json(new { error = "media_storage_not_configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
 
+                var mediaId = Guid.NewGuid();
                 var storageKey = $"{actor.HospitalId:N}/{mediaId:N}.scx";
                 if (!TryResolvePath(root, storageKey, out var fullPath))
                     return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
 
+                var plaintext = new byte[checked((int)file.Length)];
                 byte[] encrypted;
                 string sha256;
+                string mediaType;
+                string contentType;
                 try
                 {
-                    encrypted = protector.Encrypt(actor.HospitalId, mediaId, plaintext);
-                    sha256 = Convert.ToHexString(SHA256.HashData(plaintext)).ToLowerInvariant();
-                }
-                catch (Exception ex) when (ex is InvalidOperationException or CryptographicException)
-                {
-                    logger.LogError("Media encryption is not configured or failed ({ExceptionType}).", ex.GetType().Name);
-                    return Results.Json(new { error = "media_encryption_unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                    await using (var input = file.OpenReadStream())
+                        await input.ReadExactlyAsync(plaintext, ct);
+
+                    if (!MediaFileSignatureValidator.Matches(extension, plaintext, out mediaType, out contentType))
+                        return Results.BadRequest(new { error = "file_signature_mismatch" });
+
+                    try
+                    {
+                        if (!await scanner.IsCleanAsync(plaintext, ct))
+                            return Results.UnprocessableEntity(new { error = "malware_detected" });
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        logger.LogWarning("Media malware scanning is unavailable ({ExceptionType}); upload rejected.", ex.GetType().Name);
+                        return Results.Json(new { error = "media_scanning_unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                    }
+
+                    try
+                    {
+                        encrypted = protector.Encrypt(actor.HospitalId, mediaId, plaintext);
+                        sha256 = Convert.ToHexString(SHA256.HashData(plaintext)).ToLowerInvariant();
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException or CryptographicException)
+                    {
+                        logger.LogError("Media encryption is not configured or failed ({ExceptionType}).", ex.GetType().Name);
+                        return Results.Json(new { error = "media_encryption_unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                    }
                 }
                 finally
                 {
