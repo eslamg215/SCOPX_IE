@@ -30,8 +30,9 @@ public static class MediaEndpoints
         group.MapPost("/upload/{procedureId:guid}",
             async (Guid procedureId, HttpContext context, IUserRepository users, ISessionRepository sessions,
                 IHospitalMembershipRepository memberships, IMediaRepository media, MediaContentProtector protector,
-                IMediaMalwareScanner scanner, ILogger<MediaEndpoints> logger, CancellationToken ct) =>
+                IMediaMalwareScanner scanner, ILoggerFactory loggerFactory, CancellationToken ct) =>
             {
+                var logger = loggerFactory.CreateLogger("SCOPX.Api.Media.Upload");
                 var actor = await Resolve(context, users, sessions, memberships, ct);
                 if (actor is null) return Results.Unauthorized();
                 if (!WriteAllowed(actor.Roles)) return Results.Forbid();
@@ -130,8 +131,9 @@ public static class MediaEndpoints
         group.MapGet("/{id:guid}/download",
             async (Guid id, HttpContext context, IUserRepository users, ISessionRepository sessions,
                 IHospitalMembershipRepository memberships, IMediaRepository media, MediaContentProtector protector,
-                ILogger<MediaEndpoints> logger, CancellationToken ct) =>
+                ILoggerFactory loggerFactory, CancellationToken ct) =>
             {
+                var logger = loggerFactory.CreateLogger("SCOPX.Api.Media.Download");
                 var actor = await Resolve(context, users, sessions, memberships, ct);
                 if (actor is null) return Results.Unauthorized();
                 if (!ReadAllowed(actor.Roles)) return Results.Forbid();
