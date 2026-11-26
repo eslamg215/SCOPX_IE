@@ -141,9 +141,19 @@ check(media_api.exists(), 'media endpoints module exists')
 if media_api.exists():
     ma=media_api.read_text(encoding='utf-8')
     check('/upload/{procedureId:guid}' in ma and '/download' in ma and '/procedure/{procedureId:guid}' in ma, 'media upload, download, and list endpoints are present')
-    check('MaxBytes=50*1024*1024' in ma and 'Allowed.TryGetValue' in ma and 'SHA256.HashDataAsync' in ma, 'media uploads are size-limited, extension-whitelisted and hashed')
+    check('MaxBytes = 50 * 1024 * 1024' in ma and 'MediaFileSignatureValidator.Matches' in ma, 'media uploads are size-limited and validated by file signature')
+    check('IMediaMalwareScanner scanner' in ma and 'media_scanning_unavailable' in ma, 'media uploads fail closed when malware scanning is unavailable')
+    check('protector.Encrypt' in ma and 'protector.Decrypt' in ma and 'FixedTimeEquals' in ma, 'media files are authenticated-encrypted and integrity-checked on download')
     check('Path.GetFullPath' in ma and 'HospitalId:N' in ma, 'media storage keys are generated and full paths are checked')
-check('MapMediaEndpoints' not in program and 'IMediaRepository' not in program, 'media routes remain disabled pending storage security and audit integration')
+protection=API/'Media/MediaContentProtection.cs'
+check(protection.exists(), 'authenticated media protection module exists')
+if protection.exists():
+    mp=protection.read_text(encoding='utf-8')
+    check('new AesGcm(key, TagSize)' in mp and 'RandomNumberGenerator.GetBytes(NonceSize)' in mp, 'media encryption uses AES-GCM with a fresh nonce')
+    check('MediaStorage:EncryptionKeyBase64' in mp and 'key.Length != 32' in mp, 'media encryption requires a configured 256-bit key')
+    check('AssociatedData' in mp and 'CryptographicOperations.ZeroMemory(key)' in mp, 'media encryption binds tenant and asset identity and clears key buffers')
+    check('UnavailableMediaMalwareScanner' in mp and 'No malware scanning engine is configured' in mp, 'default malware scanner rejects uploads until a real scanner is configured')
+check('MapMediaEndpoints' not in program and 'IMediaRepository' not in program, 'media routes remain disabled pending scanner, retention, and operational verification')
 
 # Step 29 Windows workstation shell checks
 workstation=ROOT/'src/SCOPX.Workstation'
