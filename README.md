@@ -224,3 +224,14 @@ Migration 013 stamps a retention deadline on new media only when an explicitly e
 - The PostgreSQL smoke test now inserts a synthetic media asset as the actual `scopx_runtime` role under tenant RLS and proves that the enabled hospital policy stamps the deadline, ignores caller input, and prevents later mutation.
 - See [Step 46 verification notes](docs/STEP-46-RUNTIME-RETENTION-STAMPING-VERIFICATION.md).
 - This remains disposable-CI validation only. No deletion worker, scheduler, physical deletion, tombstoning, or media API activation is enabled.
+
+
+## Step 64 — Session lifecycle security review
+
+- Reviewed opaque token generation, hashed persistence, eight-hour expiry, logout revocation, account-disable behavior, and the PostgreSQL session indexes.
+- Confirmed CI coverage for persisted session login/lookup, expiry, revocation, disabled accounts, and tenant membership revocation.
+- Documented outstanding gaps: `last_seen_at` is not updated, no refresh/session-management UI exists, and expired/revoked rows have no bounded cleanup worker.
+- No session rows were changed or deleted. Global authentication event logging remains blocked on explicit retention and authorized-reader decisions.
+- See `docs/STEP-64-SESSION-LIFECYCLE-SECURITY-REVIEW.md`.
+
+Synthetic data only. This is a security review, not clinical validation or production readiness.
