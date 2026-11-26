@@ -163,7 +163,7 @@ if scanner_file.exists():
 check('UnavailableMediaMalwareScanner' in mp and 'No malware scanning engine is configured' in mp, 'fallback malware scanner implementation fails closed')
 check('MapMediaEndpoints' not in program and 'IMediaRepository' not in program, 'media routes remain disabled pending scanner, retention, and operational verification')
 retention_migration=MIGRATIONS/'011_media_retention_lifecycle.sql'
-check(retention_migration.exists(), 'Step 42 media retention lifecycle draft migration exists')
+check(retention_migration.exists(), 'Step 43 media retention lifecycle draft migration exists')
 if retention_migration.exists():
     rm=retention_migration.read_text(encoding='utf-8')
     check('media_retention_policies' in rm and 'retention_days' in rm and 'enabled boolean NOT NULL DEFAULT false' in rm, 'retention requires an explicit per-hospital policy with no invented default period')
