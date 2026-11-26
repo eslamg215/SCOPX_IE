@@ -8,7 +8,7 @@ namespace SCOPX.Infrastructure.Reports;
 
 public sealed class NpgsqlReportRepository(string connectionString) : IReportRepository
 {
-    private const string Columns = "id,hospital_id,procedure_id,report_version,status,report_body,created_at,updated_at";
+    private const string Columns = "id,hospital_id,procedure_id,report_version,status,report_body,report_body_sha256,created_at,updated_at";
 
     private static async Task SetTenant(NpgsqlConnection connection, NpgsqlTransaction transaction,
         Guid hospitalId, CancellationToken ct)
@@ -21,8 +21,8 @@ public sealed class NpgsqlReportRepository(string connectionString) : IReportRep
 
     private static ProcedureReportRecord Read(NpgsqlDataReader reader) =>
         new(reader.GetGuid(0), reader.GetGuid(1), reader.GetGuid(2), reader.GetInt32(3),
-            reader.GetString(4), reader.GetString(5),
-            reader.GetFieldValue<DateTimeOffset>(6), reader.GetFieldValue<DateTimeOffset>(7));
+            reader.GetString(4), reader.GetString(5), reader.GetString(6),
+            reader.GetFieldValue<DateTimeOffset>(7), reader.GetFieldValue<DateTimeOffset>(8));
 
     // Canonical text representation used for the persisted SHA-256 digest.
     // The same canonicalization version must be used by any future signing service.
@@ -180,4 +180,69 @@ public sealed class NpgsqlReportRepository(string connectionString) : IReportRep
         await transaction.CommitAsync(ct);
         return affected == 1;
     }
+
+    public async Task<bool> SignAsync(
+        Guid hospitalId, Guid actorUserId, Guid signerMembershipId, Guid reportId,
+        int expectedVersion, string documentSha256, DateTimeOffset signedAt,
+        DateTimeOffset reauthenticatedAt, string authenticationMethod,
+        string canonicalizationVersion, string signatureAlgorithm, string signingKeyId,
+        byte[] signatureValue, CancellationToken ct = default)
+    {
+        const string sql = """
+            INSERT INTO procedure_report_signatures
+                (hospital_id, report_id, report_version, document_sha256, signer_membership_id,
+                 signed_at, reauthenticated_at, authentication_method, canonicalization_version,
+                 signature_algorithm, signing_key_id, signature_value)
+            SELECT @hospital, r.id, r.report_version, @sha, @membership,
+                   @signed_at, @reauthenticated_at, @authentication_method, @canonicalization,
+                   @algorithm, @key_id, @signature
+            FROM procedure_reports r
+            WHERE r.hospital_id=@hospital AND r.id=@id
+              AND r.report_version=@expected_version
+              AND r.report_body_sha256=@sha
+              AND r.status='review' AND r.signed_at IS NULL
+            RETURNING id;
+            """;
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        await SetTenant(connection, transaction, hospitalId, ct);
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("hospital", hospitalId);
+        command.Parameters.AddWithValue("id", reportId);
+        command.Parameters.AddWithValue("expected_version", expectedVersion);
+        command.Parameters.AddWithValue("sha", NpgsqlDbType.Varchar, documentSha256);
+        command.Parameters.AddWithValue("membership", signerMembershipId);
+        command.Parameters.AddWithValue("signed_at", NpgsqlDbType.TimestampTz, signedAt);
+        command.Parameters.AddWithValue("reauthenticated_at", NpgsqlDbType.TimestampTz, reauthenticatedAt);
+        command.Parameters.AddWithValue("authentication_method", NpgsqlDbType.Varchar, authenticationMethod);
+        command.Parameters.AddWithValue("canonicalization", NpgsqlDbType.Varchar, canonicalizationVersion);
+        command.Parameters.AddWithValue("algorithm", NpgsqlDbType.Varchar, signatureAlgorithm);
+        command.Parameters.AddWithValue("key_id", NpgsqlDbType.Varchar, signingKeyId);
+        command.Parameters.AddWithValue("signature", NpgsqlDbType.Bytea, signatureValue);
+
+        var result = await command.ExecuteScalarAsync(ct);
+        if (result is not Guid)
+        {
+            await transaction.CommitAsync(ct);
+            return false;
+        }
+
+        await NpgsqlAuditEventWriter.WriteAsync(connection, transaction, hospitalId, actorUserId,
+            "report.signed", "procedure_report", reportId,
+            new
+            {
+                report_version = expectedVersion,
+                document_sha256 = documentSha256,
+                signing_key_id = signingKeyId,
+                signature_algorithm = signatureAlgorithm,
+                authentication_method = authenticationMethod
+            }, ct);
+
+        await transaction.CommitAsync(ct);
+        return true;
+    }
+
 }
