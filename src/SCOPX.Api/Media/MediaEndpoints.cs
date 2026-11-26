@@ -136,7 +136,7 @@ public static class MediaEndpoints
                 var logger = loggerFactory.CreateLogger("SCOPX.Api.Media.Download");
                 var actor = await Resolve(context, users, sessions, memberships, ct);
                 if (actor is null) return Results.Unauthorized();
-                if (!ReadAllowed(actor.Roles)) return Results.Forbid();
+                if (!DownloadAllowed(actor.Roles)) return Results.Forbid();
 
                 var found = await media.FindAsync(actor.HospitalId, actor.UserId, id, ct);
                 if (found.Asset is null || found.StorageKey is null) return Results.NotFound();
@@ -148,8 +148,15 @@ public static class MediaEndpoints
                 try
                 {
                     var encrypted = await File.ReadAllBytesAsync(fullPath, ct);
-                    var plaintext = protector.Decrypt(actor.HospitalId, id, encrypted);
-                    CryptographicOperations.ZeroMemory(encrypted);
+                    byte[] plaintext;
+                    try
+                    {
+                        plaintext = protector.Decrypt(actor.HospitalId, id, encrypted);
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(encrypted);
+                    }
 
                     var actualHash = SHA256.HashData(plaintext);
                     byte[] expectedHash;
@@ -167,6 +174,7 @@ public static class MediaEndpoints
                         return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
                     }
 
+                    await media.RecordDownloadAsync(actor.HospitalId, actor.UserId, id, ct);
                     return Results.File(plaintext, found.Asset.ContentType, found.Asset.FileName,
                         enableRangeProcessing: false);
                 }
@@ -210,6 +218,12 @@ public static class MediaEndpoints
 
     private static bool ReadAllowed(string[] roles) =>
         roles.Any(role => new[] { "hospital_admin", "doctor", "nurse", "auditor", "endoscopy_technician" }
+            .Contains(role, StringComparer.OrdinalIgnoreCase));
+
+    // Auditors may inspect media metadata, but downloading clinical recordings is
+    // restricted to care-team roles. Tenant membership is independently validated.
+    private static bool DownloadAllowed(string[] roles) =>
+        roles.Any(role => new[] { "hospital_admin", "doctor", "nurse", "endoscopy_technician" }
             .Contains(role, StringComparer.OrdinalIgnoreCase));
 
     private static bool WriteAllowed(string[] roles) =>
