@@ -14,3 +14,12 @@ No worker, scheduler, storage-object deletion, tombstone execution, or media API
 ## Validation result
 
 GitHub Actions run #390 passed on commit `75611b2a981f4c745db2debeaf732018bfffd1bc`. PostgreSQL 17 migrations 001-012 and the synthetic lifecycle smoke tests passed; API and Windows workstation builds also passed. This remains draft schema validation only, not production or legal approval.
+
+
+## Step 45 — New-media retention deadline stamping (draft)
+
+Migration 013 stamps `media_assets.retention_until` only when a new recording is inserted and that hospital has an explicitly enabled retention policy. The deadline is calculated from the row's `created_at` plus the configured `retention_days`. A missing or disabled policy forces the deadline to NULL, even if a caller tries to supply a value.
+
+The stamp, creation timestamp, and hospital association are immutable after insertion. Changing a hospital policy does not recalculate existing media deadlines. No default retention period is introduced. Migration 013 is excluded by default and requires all four explicit flags: `--include-rls-draft --include-retention-draft --include-retention-hardening-draft --include-retention-stamping-draft`.
+
+The PostgreSQL CI smoke test covers enabled, disabled, and missing policies; caller-supplied deadline override; immutability; and the guarantee that policy edits do not rewrite existing deadlines. No worker, scheduler, physical deletion, or media API mapping is enabled. Synthetic data only.
