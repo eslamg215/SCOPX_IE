@@ -1,5 +1,5 @@
 -- Disposable-database integration smoke test for SCOPX tenant RLS and hardening.
--- Run only after migrations 001-012 and Grant-RuntimePrivileges.sql.
+-- Run only after migrations 001-013 and Grant-RuntimePrivileges.sql.
 -- The entire fixture set is rolled back. All records are synthetic.
 BEGIN;
 
