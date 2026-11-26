@@ -73,3 +73,30 @@ BEGIN
         EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE ON TABLE public.procedure_report_signatures FROM scopx_runtime';
     END IF;
 END $$;
+
+
+-- Optional medical-media retention lifecycle (migration 011). These tables are
+-- tenant-RLS scoped. No DELETE/TRUNCATE privileges are granted; deletion events
+-- are append-only. The worker/API remain disabled until separately reviewed.
+DO $$
+BEGIN
+    IF to_regclass('public.media_retention_policies') IS NOT NULL THEN
+        EXECUTE 'REVOKE ALL ON TABLE public.media_retention_policies FROM PUBLIC';
+        EXECUTE 'GRANT SELECT, INSERT, UPDATE ON TABLE public.media_retention_policies TO scopx_runtime';
+    END IF;
+    IF to_regclass('public.media_legal_holds') IS NOT NULL THEN
+        EXECUTE 'REVOKE ALL ON TABLE public.media_legal_holds FROM PUBLIC';
+        EXECUTE 'GRANT SELECT, INSERT, UPDATE ON TABLE public.media_legal_holds TO scopx_runtime';
+        EXECUTE 'REVOKE DELETE, TRUNCATE ON TABLE public.media_legal_holds FROM scopx_runtime';
+    END IF;
+    IF to_regclass('public.media_deletion_queue') IS NOT NULL THEN
+        EXECUTE 'REVOKE ALL ON TABLE public.media_deletion_queue FROM PUBLIC';
+        EXECUTE 'GRANT SELECT, INSERT, UPDATE ON TABLE public.media_deletion_queue TO scopx_runtime';
+        EXECUTE 'REVOKE DELETE, TRUNCATE ON TABLE public.media_deletion_queue FROM scopx_runtime';
+    END IF;
+    IF to_regclass('public.media_deletion_events') IS NOT NULL THEN
+        EXECUTE 'REVOKE ALL ON TABLE public.media_deletion_events FROM PUBLIC';
+        EXECUTE 'GRANT SELECT, INSERT ON TABLE public.media_deletion_events TO scopx_runtime';
+        EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE ON TABLE public.media_deletion_events FROM scopx_runtime';
+    END IF;
+END $$;
