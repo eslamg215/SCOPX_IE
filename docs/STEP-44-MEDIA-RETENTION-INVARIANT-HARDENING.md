@@ -23,3 +23,8 @@ Migration 013 stamps `media_assets.retention_until` only when a new recording is
 The stamp, creation timestamp, and hospital association are immutable after insertion. Changing a hospital policy does not recalculate existing media deadlines. No default retention period is introduced. Migration 013 is excluded by default and requires all four explicit flags: `--include-rls-draft --include-retention-draft --include-retention-hardening-draft --include-retention-stamping-draft`.
 
 The PostgreSQL CI smoke test covers enabled, disabled, and missing policies; caller-supplied deadline override; immutability; and the guarantee that policy edits do not rewrite existing deadlines. No worker, scheduler, physical deletion, or media API mapping is enabled. Synthetic data only.
+
+
+## Step 45 validation result
+
+GitHub Actions run #45840925408 passed all jobs on commit `86b3c0934ac3d539746f4caf9b4b98a2a215e51a`. PostgreSQL 17 applied migrations 001-013 and passed the synthetic tenant/RLS and media lifecycle smoke tests, including enabled, disabled, and missing retention policies, server-controlled creation timestamps, caller-supplied deadline override, immutable stamps, and the legacy expired-media queue guard. API and Windows workstation builds, cryptography tests, and offline structural checks passed. This validates the draft implementation only; it is not clinical or production approval.
