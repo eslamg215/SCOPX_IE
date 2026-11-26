@@ -4,33 +4,42 @@ using System.Text;
 namespace SCOPX.Api.Media;
 
 /// <summary>
-/// Versioned authenticated-encryption envelope for medical media.
-/// The 256-bit key must come from a managed secret store or protected environment
-/// configuration; never commit it or place it in the database.
+/// Versioned authenticated-encryption envelope with key identifiers.
+/// Keys are supplied by an external secret provider; never commit them or store them in PostgreSQL.
 /// </summary>
 public sealed class MediaContentProtector(IConfiguration configuration)
 {
-    private static readonly byte[] Magic = "SCX1"u8.ToArray();
+    private static readonly byte[] Magic = "SCX2"u8.ToArray();
     private const int NonceSize = 12;
     private const int TagSize = 16;
-    private const int HeaderSize = 4 + NonceSize + TagSize;
+    private const int PrefixSize = 5;
+    private const int MaximumKeyIdBytes = 64;
 
     public byte[] Encrypt(Guid hospitalId, Guid mediaId, ReadOnlySpan<byte> plaintext)
     {
-        var key = ReadKey();
+        var keyId = configuration["MediaStorage:ActiveKeyId"];
+        if (!IsSafeKeyId(keyId))
+            throw new InvalidOperationException("An active media encryption key ID is not configured.");
+
+        var keyIdBytes = Encoding.ASCII.GetBytes(keyId!);
+        var key = ReadKey(keyId!);
         var nonce = RandomNumberGenerator.GetBytes(NonceSize);
         var ciphertext = new byte[plaintext.Length];
         var tag = new byte[TagSize];
+        var headerSize = PrefixSize + keyIdBytes.Length + NonceSize + TagSize;
+
         try
         {
             using var aes = new AesGcm(key, TagSize);
-            aes.Encrypt(nonce, plaintext, ciphertext, tag, AssociatedData(hospitalId, mediaId));
+            aes.Encrypt(nonce, plaintext, ciphertext, tag, AssociatedData(hospitalId, mediaId, keyId!));
 
-            var envelope = new byte[HeaderSize + ciphertext.Length];
+            var envelope = new byte[headerSize + ciphertext.Length];
             Magic.CopyTo(envelope, 0);
-            nonce.CopyTo(envelope, 4);
-            tag.CopyTo(envelope, 4 + NonceSize);
-            ciphertext.CopyTo(envelope, HeaderSize);
+            envelope[4] = checked((byte)keyIdBytes.Length);
+            keyIdBytes.CopyTo(envelope, PrefixSize);
+            nonce.CopyTo(envelope, PrefixSize + keyIdBytes.Length);
+            tag.CopyTo(envelope, PrefixSize + keyIdBytes.Length + NonceSize);
+            ciphertext.CopyTo(envelope, headerSize);
             return envelope;
         }
         finally
@@ -41,20 +50,33 @@ public sealed class MediaContentProtector(IConfiguration configuration)
 
     public byte[] Decrypt(Guid hospitalId, Guid mediaId, ReadOnlySpan<byte> envelope)
     {
-        if (envelope.Length < HeaderSize || !envelope[..4].SequenceEqual(Magic))
+        if (envelope.Length < PrefixSize + 1 + NonceSize + TagSize ||
+            !envelope[..4].SequenceEqual(Magic))
             throw new CryptographicException("Unsupported or malformed media envelope.");
 
-        var key = ReadKey();
-        var plaintext = new byte[envelope.Length - HeaderSize];
+        var keyIdLength = envelope[4];
+        if (keyIdLength is < 1 or > MaximumKeyIdBytes)
+            throw new CryptographicException("Invalid media encryption key identifier.");
+
+        var headerSize = PrefixSize + keyIdLength + NonceSize + TagSize;
+        if (envelope.Length < headerSize)
+            throw new CryptographicException("Truncated media encryption envelope.");
+
+        var keyId = Encoding.ASCII.GetString(envelope.Slice(PrefixSize, keyIdLength));
+        if (!IsSafeKeyId(keyId))
+            throw new CryptographicException("Invalid media encryption key identifier.");
+
+        var key = ReadKey(keyId);
+        var plaintext = new byte[envelope.Length - headerSize];
         try
         {
             using var aes = new AesGcm(key, TagSize);
             aes.Decrypt(
-                envelope.Slice(4, NonceSize),
-                envelope[HeaderSize..],
-                envelope.Slice(4 + NonceSize, TagSize),
+                envelope.Slice(PrefixSize + keyIdLength, NonceSize),
+                envelope[headerSize..],
+                envelope.Slice(PrefixSize + keyIdLength + NonceSize, TagSize),
                 plaintext,
-                AssociatedData(hospitalId, mediaId));
+                AssociatedData(hospitalId, mediaId, keyId));
             return plaintext;
         }
         catch
@@ -68,11 +90,11 @@ public sealed class MediaContentProtector(IConfiguration configuration)
         }
     }
 
-    private byte[] ReadKey()
+    private byte[] ReadKey(string keyId)
     {
-        var encoded = configuration["MediaStorage:EncryptionKeyBase64"];
+        var encoded = configuration["MediaStorage:Keys:" + keyId];
         if (string.IsNullOrWhiteSpace(encoded))
-            throw new InvalidOperationException("Media encryption key is not configured.");
+            throw new InvalidOperationException("The requested media encryption key is not configured.");
 
         byte[] key;
         try { key = Convert.FromBase64String(encoded); }
@@ -86,8 +108,12 @@ public sealed class MediaContentProtector(IConfiguration configuration)
         return key;
     }
 
-    private static byte[] AssociatedData(Guid hospitalId, Guid mediaId) =>
-        Encoding.UTF8.GetBytes($"SCOPX.I.E|media|v1|{hospitalId:N}|{mediaId:N}");
+    private static bool IsSafeKeyId(string? keyId) =>
+        !string.IsNullOrWhiteSpace(keyId) && keyId.Length <= MaximumKeyIdBytes &&
+        keyId.All(ch => char.IsAsciiLetterOrDigit(ch) || ch is '.' or '_' or '-');
+
+    private static byte[] AssociatedData(Guid hospitalId, Guid mediaId, string keyId) =>
+        Encoding.UTF8.GetBytes($"SCOPX.I.E|media|v2|{hospitalId:N}|{mediaId:N}|{keyId}");
 }
 
 /// <summary>
