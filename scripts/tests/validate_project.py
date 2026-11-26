@@ -179,6 +179,13 @@ if signing_service.exists():
     check('Reports:SigningPrivateKeyPem' in ssvc and 'Reports:SigningKeyId' in ssvc, 'report signing requires an externally configured private key and key identifier')
     check('TimeSpan.FromMinutes(5)' in ssvc and 'CanonicalizationVersion' in ssvc, 'report signature binds canonical version and recent re-authentication metadata')
 check('AddSingleton<ReportSigningService>' in program, 'report signing service is registered but requires external key configuration')
+security_tests=ROOT/'src/SCOPX.SecurityTests/Program.cs'
+check(security_tests.exists() and (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').exists(), 'report-signing cryptography test project exists')
+if security_tests.exists():
+    st=security_tests.read_text(encoding='utf-8')
+    check('tampered signature bytes are rejected' in st and 'changed document digest invalidates the signature' in st, 'report-signing tests cover signature and payload tampering')
+    check('no private key is configured' in st and 'smaller than 2048 bits' in st, 'report-signing tests cover fail-closed key configuration and minimum strength')
+
 report_smoke=(ROOT/'scripts/tests/tenant-rls-ci-smoke.sql').read_text(encoding='utf-8')
 check('report-version RLS failed' in report_smoke and 'signed report mutation was not rejected' in report_smoke, 'PostgreSQL smoke test covers report tenant isolation and signed immutability')
 
