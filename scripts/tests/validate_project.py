@@ -161,6 +161,12 @@ if scanner_file.exists():
     check('TimeoutSeconds' in scanner_source and 'MaximumBytes' in scanner_source, 'ClamAV adapter enforces upload limits and timeout')
 check('UnavailableMediaMalwareScanner' in mp and 'No malware scanning engine is configured' in mp, 'fallback malware scanner implementation fails closed')
 check('MapMediaEndpoints' not in program and 'IMediaRepository' not in program, 'media routes remain disabled pending scanner, retention, and operational verification')
+media_endpoints=(API/'Media/MediaEndpoints.cs').read_text(encoding='utf-8')
+media_repo=(infra/'Media/NpgsqlMediaRepository.cs').read_text(encoding='utf-8')
+check('DownloadAllowed(actor.Roles)' in media_endpoints and 'private static bool DownloadAllowed' in media_endpoints, 'media downloads use a distinct care-team authorization policy')
+check('"auditor"' not in media_endpoints[media_endpoints.index('private static bool DownloadAllowed'):media_endpoints.index('private static bool WriteAllowed')], 'auditors cannot download clinical media')
+check('RecordDownloadAsync' in media_endpoints and '"media.downloaded"' in media_repo and 'integrity_verified=true' in media_repo, 'verified media downloads create transactional audit events')
+check('CryptographicOperations.ZeroMemory(encrypted)' in media_endpoints, 'encrypted media buffers are cleared after decryption')
 
 
 # Step 42 immutable report versions and signing evidence foundation
