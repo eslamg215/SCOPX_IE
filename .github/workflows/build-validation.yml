@@ -34,7 +34,7 @@ jobs:
       - name: Build report-signing security tests
         run: dotnet build src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release
 
-      - name: Run report-signing cryptography tests
+      - name: Run API authentication and cryptography security regression tests
         run: dotnet run --project src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release --no-build
 
       - name: Build Windows workstation
