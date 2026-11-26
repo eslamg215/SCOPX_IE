@@ -359,6 +359,8 @@ if api_launcher.exists():
     check('ConnectionStrings__ScopxDb' in launch_text and 'dotnet run --project' in launch_text, 'API launcher loads the local connection string and starts the API')
     check('No migrations are run automatically' in launch_text and 'never print the secret' in launch_text, 'API launcher avoids printing secrets and does not auto-apply migrations')
     check('docker inspect' in launch_text and "healthy" in launch_text, 'API launcher requires a healthy local PostgreSQL container')
+compose=(ROOT/'docker-compose.yml').read_text(encoding='utf-8')
+check('POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?' in compose and 'local_only_change_me' not in compose, 'Docker Compose refuses to start with an implicit weak database password')
 env_example=(ROOT/'.env.example').read_text(encoding='utf-8')
 check('ConnectionStrings__ScopxDb=' in env_example, 'environment example includes a local API connection string template')
 bootstrap_project=ROOT/'src/SCOPX.Bootstrap/SCOPX.Bootstrap.csproj'
