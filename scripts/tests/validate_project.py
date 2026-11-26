@@ -37,6 +37,9 @@ auth_endpoints=(API/'Authentication/AuthEndpoints.cs').read_text(encoding='utf-8
 check('RequestSizeLimitAttribute(16 * 1024)' in auth_endpoints, 'login endpoint enforces a 16 KiB request-body limit')
 security_tests=(ROOT/'src/SCOPX.SecurityTests/Program.cs').read_text(encoding='utf-8')
 check('HTTP login rejects malformed JSON' in security_tests and 'HTTP login rejects unsupported content types' in security_tests and 'HTTP login rejects request bodies larger than 16 KiB' in security_tests, 'login request validation and body-size regression tests exist')
+cors=(API/'Security/ApiCorsExtensions.cs').read_text(encoding='utf-8')
+check('AddScopxCors' in program and 'UseCors("scopx")' in program and 'WithOrigins(origins)' in cors, 'API CORS uses an explicit configured origin allowlist')
+check('AllowCredentials' not in cors and "origin.Contains('*')" in cors, 'CORS rejects wildcard origins and does not enable credentialed requests')
 security=API/'Security'
 check((security/'PasswordHashService.cs').exists(), 'password hashing service file exists')
 check((security/'PasswordPolicy.cs').exists(), 'password policy file exists')
