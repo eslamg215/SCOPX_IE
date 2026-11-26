@@ -195,6 +195,6 @@ Migration 010 adds append-only report snapshots, canonical SHA-256 digests, sign
 
 The migration is **excluded from normal local runs** and requires explicit `--include-rls-draft --include-report-signing-draft` flags. See `docs/STEP-42-REPORT-VERSIONING-SIGNATURE-EVIDENCE.md`.
 
-Important: the signing API, re-authentication flow, managed signing keys, cryptographic verification, amendment workflow, and legal e-signature compliance are not implemented. CI uses dummy signature bytes only to test database guards; no valid electronic signature is issued. The API remains fail-closed and clinical routes remain unmapped.
+Important: a provider-neutral RSA-PSS-SHA256 signing/verification service is present, but the signing API, strong re-authentication integration, managed signing-key lifecycle, public-key registry, amendment workflow, and legal e-signature compliance are not implemented. The service requires an externally managed private key and is not yet wired to database signature insertion. CI uses dummy signature bytes only to test database guards; no valid electronic signature is issued. The API remains fail-closed and clinical routes remain unmapped.
 
 **Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
