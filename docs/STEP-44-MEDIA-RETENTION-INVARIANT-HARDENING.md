@@ -10,3 +10,7 @@ CI extends the synthetic PostgreSQL smoke test to prove that released legal hold
 Migration 012 is excluded by default. It requires all three explicit flags: --include-rls-draft --include-retention-draft --include-retention-hardening-draft.
 
 No worker, scheduler, storage-object deletion, tombstone execution, or media API mapping is enabled. This is a schema/invariant foundation only. Synthetic data only.
+
+## Validation result
+
+GitHub Actions run #390 passed on commit `75611b2a981f4c745db2debeaf732018bfffd1bc`. PostgreSQL 17 migrations 001-012 and the synthetic lifecycle smoke tests passed; API and Windows workstation builds also passed. This remains draft schema validation only, not production or legal approval.
