@@ -182,7 +182,7 @@ GitHub Actions now builds the API and Windows workstation on pushes and pull req
 
 ## Step 41 — Protected medical-media foundation
 
-A protected media foundation now validates JPEG/PNG/WebP/MP4/WebM file signatures, applies a 50 MiB upload cap, requires malware scanning, encrypts stored content with AES-256-GCM, and verifies the plaintext hash after authenticated decryption. The default malware scanner deliberately reports itself unavailable, so uploads fail closed. The API host still does **not** map media routes.
+A protected media foundation now validates JPEG/PNG/WebP/MP4/WebM file signatures, applies a 50 MiB upload cap, requires malware scanning through a registered ClamAV INSTREAM adapter, encrypts stored content with AES-256-GCM, and verifies the plaintext hash after authenticated decryption. Missing scanner configuration, daemon errors, malformed responses, and timeouts fail closed. The ClamAV protocol is unencrypted and must be restricted to a private network. The API host still does **not** map media routes.
 
 See `docs/STEP-41-MEDIA-PROTECTION-FOUNDATION.md` for the encryption envelope, key configuration, and remaining requirements. Production malware scanning, managed key rotation, encrypted backups, retention/deletion controls, streaming video storage, integration tests, and independent security review remain outstanding.
 
