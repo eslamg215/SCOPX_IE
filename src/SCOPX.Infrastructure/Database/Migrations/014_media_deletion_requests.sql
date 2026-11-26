@@ -205,6 +205,13 @@ CREATE TRIGGER media_deletion_requests_event_update
 AFTER UPDATE OF status ON public.media_deletion_requests
 FOR EACH ROW EXECUTE FUNCTION public.scopx_record_media_deletion_request_event();
 
+-- Trigger functions are callable only through their installed triggers.
+-- Revoking PUBLIC execution prevents future accidental direct invocation of
+-- SECURITY DEFINER entry points if their signatures are ever changed.
+REVOKE ALL ON FUNCTION public.scopx_guard_media_deletion_request() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.scopx_record_media_deletion_request_event() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.scopx_reject_media_deletion_request_event_mutation() FROM PUBLIC;
+
 CREATE OR REPLACE FUNCTION public.scopx_reject_media_deletion_request_event_mutation()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
