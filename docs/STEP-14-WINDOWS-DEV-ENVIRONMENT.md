@@ -38,3 +38,7 @@ Run `./scripts/windows/Backup-DevDatabase.ps1`. Backup output defaults to `./bac
 - The compose port is bound to loopback.
 - Database migrations and runtime grants are deliberately not auto-applied by these scripts; they remain opt-in and must be reviewed, especially RLS and tenant hardening.
 - The .NET API and Windows workstation builds plus PostgreSQL migration/RLS smoke tests are run in GitHub Actions. Local scripts still require review and explicit execution; CI success is not clinical validation.
+
+
+## Optional report-version/signature draft
+Migration 010 is excluded from the normal local setup sequence. It requires explicit `--include-rls-draft --include-report-signing-draft` flags and must not be applied locally until its schema and signing workflow have been independently reviewed. See `docs/STEP-42-REPORT-VERSIONING-SIGNATURE-EVIDENCE.md`.
