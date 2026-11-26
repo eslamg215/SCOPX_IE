@@ -1,3 +1,19 @@
+using SCOPX.Infrastructure.Hospitals;
+using SCOPX.Infrastructure.Sessions;
+using SCOPX.Infrastructure.Users;
+using SCOPX.Api.Tenancy;
+using SCOPX.Api.Security;
+using System.Threading.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Server.Features;
+using Microsoft.AspNetCore.Server;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
+using System.Text.Json;
+using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
@@ -221,5 +237,7 @@ var unavailableScanner = new ClamAvMediaMalwareScanner(noScannerConfig);
 await RequireThrowsAsync<InvalidOperationException>(
     async () => { await unavailableScanner.IsCleanAsync(new byte[] { 1 }, CancellationToken.None); },
     "media upload scanning fails closed when ClamAV is not configured");
+
+await RunAuthHttpIntegrationTestsAsync();
 
 Console.WriteLine("All SCOPX security tests passed.");
