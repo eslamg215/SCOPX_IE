@@ -241,6 +241,7 @@ await RequireThrowsAsync<InvalidOperationException>(
     "media upload scanning fails closed when ClamAV is not configured");
 
 await RunAuthHttpIntegrationTestsAsync();
+await RunLoginRateLimitHttpTestAsync();
 await RunPostgresHttpIntegrationTestsAsync();
 
 
@@ -467,20 +468,6 @@ static async Task RunAuthHttpIntegrationTestsAsync()
             Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects a user disabled after session creation");
         }
 
-        for (var attempt = 9; attempt <= 10; attempt++)
-        {
-            using var limitedLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
-                new { email = "not-present@example.invalid", password = "NoSuchSyntheticPassword2026" });
-            Check(limitedLogin, HttpStatusCode.Unauthorized, $"HTTP login request {attempt} remains within the configured limit");
-        }
-        using (var overLimit = await client.PostAsJsonAsync("/api/v1/auth/login",
-            new { email = "not-present@example.invalid", password = "NoSuchSyntheticPassword2026" }))
-        {
-            Check(overLimit, HttpStatusCode.TooManyRequests, "HTTP login rate limiter rejects the eleventh request from one client");
-            Require(overLimit.Headers.TryGetValues("X-Content-Type-Options", out var limitedNosniff)
-                && limitedNosniff.Single() == "nosniff",
-                "Rate-limit rejection responses retain the standard security headers");
-        }
     }
     finally
     {
@@ -490,6 +477,54 @@ static async Task RunAuthHttpIntegrationTestsAsync()
 
 static string SessionHash(string token) =>
     Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+
+
+
+static async Task RunLoginRateLimitHttpTestAsync()
+{
+    var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+    builder.Logging.ClearProviders();
+    builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
+    builder.Services.AddSingleton<IUserRepository>(new FakeUserRepository(Array.Empty<UserRecord>()));
+    builder.Services.AddSingleton<ISessionRepository>(new FakeSessionRepository());
+    builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<AuthUser>, Microsoft.AspNetCore.Identity.PasswordHasher<AuthUser>>();
+    builder.Services.AddScoped<PasswordHashService>();
+    builder.Services.AddScopxRateLimiting();
+
+    await using var app = builder.Build();
+    app.UseScopxExceptionHandling();
+    app.UseScopxSecurityHeaders();
+    app.UseRateLimiter();
+    app.MapAuthEndpoints();
+    await app.StartAsync();
+    try
+    {
+        var server = app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>();
+        using var client = new HttpClient { BaseAddress = new Uri(server.Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
+        for (var attempt = 1; attempt <= 10; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync("/api/v1/auth/login",
+                new { email = "not-present@example.invalid", password = "NoSuchSyntheticPassword2026" });
+            if (response.StatusCode != HttpStatusCode.Unauthorized)
+                throw new InvalidOperationException($"FAIL: login request {attempt} should be permitted and rejected as invalid credentials; got {(int)response.StatusCode}.");
+            Console.WriteLine($"PASS: login request {attempt} remains within the configured limit");
+        }
+        using (var overLimit = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = "not-present@example.invalid", password = "NoSuchSyntheticPassword2026" }))
+        {
+            if (overLimit.StatusCode != HttpStatusCode.TooManyRequests)
+                throw new InvalidOperationException($"FAIL: eleventh login request should be rate-limited; got {(int)overLimit.StatusCode}.");
+            Console.WriteLine("PASS: login rate limiter rejects the eleventh request from one client");
+            Require(overLimit.Headers.TryGetValues("X-Content-Type-Options", out var nosniff)
+                && nosniff.Single() == "nosniff",
+                "rate-limit rejection response retains the standard security headers");
+        }
+    }
+    finally
+    {
+        await app.StopAsync();
+    }
+}
 
 
 static async Task RunPostgresHttpIntegrationTestsAsync()
