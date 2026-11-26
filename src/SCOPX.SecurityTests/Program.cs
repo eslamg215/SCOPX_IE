@@ -284,6 +284,7 @@ static async Task RunAuthHttpIntegrationTestsAsync()
     app.UseScopxSecurityHeaders();
     app.MapAuthEndpoints();
     app.MapHospitalContextEndpoints();
+    app.MapGet("/_test/throw", () => Task.FromException<IResult>(new InvalidOperationException("synthetic-secret-exception-detail")));
     await app.StartAsync();
     try
     {
@@ -301,10 +302,47 @@ static async Task RunAuthHttpIntegrationTestsAsync()
         using var login = await client.PostAsJsonAsync("/api/v1/auth/login",
             new { email = "active@example.invalid", password });
         Check(login, HttpStatusCode.OK, "HTTP login accepts a valid synthetic account");
+        Require(login.Headers.TryGetValues("X-Content-Type-Options", out var nosniff) && nosniff.Single() == "nosniff",
+            "HTTP responses include X-Content-Type-Options nosniff");
+        Require(login.Headers.TryGetValues("X-Frame-Options", out var frame) && frame.Single() == "DENY",
+            "HTTP responses deny framing");
+        Require(login.Headers.TryGetValues("Referrer-Policy", out var referrer) && referrer.Single() == "no-referrer",
+            "HTTP responses use a no-referrer policy");
+        Require(login.Headers.CacheControl?.NoStore == true,
+            "HTTP responses disable caching of authentication data");
+        Require(login.Headers.TryGetValues("Content-Security-Policy", out var csp)
+            && csp.Single().Contains("default-src 'none'", StringComparison.Ordinal),
+            "HTTP responses include a restrictive content security policy");
         using var loginJson = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
         var token = loginJson.RootElement.GetProperty("access_token").GetString()
             ?? throw new InvalidOperationException("Login did not return access_token.");
         Require(token.Length >= 40, "HTTP login returns a high-entropy bearer token");
+
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Add("X-Correlation-ID", "safe_Correlation-55");
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "Correlation-ID test request remains unauthenticated");
+            Require(response.Headers.TryGetValues("X-Correlation-ID", out var values)
+                && values.Single() == "safe_Correlation-55",
+                "HTTP pipeline preserves a validated correlation identifier");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Add("X-Correlation-ID", "unsafe value");
+            using var response = await client.SendAsync(request);
+            var generated = response.Headers.GetValues("X-Correlation-ID").Single();
+            Require(generated.Length == 32 && generated.All(Uri.IsHexDigit),
+                "HTTP pipeline replaces an invalid correlation identifier with a generated safe ID");
+        }
+        using (var response = await client.GetAsync("/_test/throw"))
+        {
+            Check(response, HttpStatusCode.InternalServerError, "HTTP exception handler converts unhandled errors to status 500");
+            var body = await response.Content.ReadAsStringAsync();
+            Require(body.Contains("internal_error", StringComparison.Ordinal)
+                && !body.Contains("synthetic-secret-exception-detail", StringComparison.Ordinal),
+                "HTTP exception responses redact internal exception details");
+        }
 
         using (var response = await client.GetAsync("/api/v1/auth/me"))
             Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects missing credentials");
@@ -417,6 +455,16 @@ static async Task RunAuthHttpIntegrationTestsAsync()
             using var response = await client.SendAsync(request);
             Check(response, HttpStatusCode.Unauthorized, "HTTP /me rejects a user disabled after session creation");
         }
+
+        for (var attempt = 6; attempt <= 10; attempt++)
+        {
+            using var limitedLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
+                new { email = "not-present@example.invalid", password = "NoSuchSyntheticPassword2026" });
+            Check(limitedLogin, HttpStatusCode.Unauthorized, $"HTTP login request {attempt} remains within the configured limit");
+        }
+        using (var overLimit = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = "not-present@example.invalid", password = "NoSuchSyntheticPassword2026" }))
+            Check(overLimit, HttpStatusCode.TooManyRequests, "HTTP login rate limiter rejects the eleventh request from one client");
     }
     finally
     {
