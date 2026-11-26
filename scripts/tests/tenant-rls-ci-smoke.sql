@@ -307,7 +307,7 @@ DO $scopx_request_test$
 BEGIN
     IF (SELECT status FROM public.media_deletion_requests
          WHERE id = '30000000-0000-0000-0000-000000000001') <> 'approved' THEN
-      RAISE EXCEPTION 'valid four-eyes approval did not persist';
+      RAISE EXCEPTION 'valid distinct-reviewer decision did not persist';
     END IF;
     IF (SELECT count(*) FROM public.media_deletion_request_events
          WHERE request_id = '30000000-0000-0000-0000-000000000001') <> 3 THEN
