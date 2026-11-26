@@ -4,7 +4,7 @@
 
 - Uploads are capped at 50 MiB before buffering.
 - File signatures are checked for JPEG, PNG, WebP, MP4, and WebM. The original filename and request MIME header are not trusted to establish the content type.
-- A malware-scanner contract is required before accepting an upload. The registered default scanner throws an unavailable error, so uploads fail closed until a real scanning engine is integrated and tested.
+- A ClamAV INSTREAM adapter is registered. It streams bounded 64 KiB chunks to a configured daemon, enforces a 50 MiB limit and timeout, accepts only `OK`, rejects `FOUND`, and fails closed for missing configuration, daemon errors, malformed responses, and timeouts. CI tests the protocol with a local fake daemon; a real ClamAV deployment has not been tested.
 - Accepted content is encrypted before it is written to the configured storage root using AES-256-GCM, a fresh 96-bit nonce, a 128-bit authentication tag, and associated data binding the hospital and media identifiers.
 - The encryption key is read from `MediaStorage:EncryptionKeyBase64` and must decode to exactly 32 bytes. It is not stored in PostgreSQL or source control.
 - Downloads decrypt the envelope and verify the plaintext byte count and SHA-256 digest before returning bytes.
@@ -22,7 +22,9 @@
 
 ## Configuration
 
-When a real scanner and protected key-management mechanism are available, provide the key through protected deployment configuration under `MediaStorage:EncryptionKeyBase64`. A local development key can be generated with:
+Configure a real ClamAV daemon on a private, isolated network using `MediaScanning:ClamAvHost`, `MediaScanning:ClamAvPort`, and optionally `MediaScanning:TimeoutSeconds` (default 30, bounded to 1–120 seconds). The ClamAV TCP protocol used here is not encrypted; do not expose the daemon publicly or across an untrusted network. Ensure the daemon's `StreamMaxLength` is at least the application upload cap and keep its signatures updated.
+
+When protected key management is available, provide the key through protected deployment configuration under `MediaStorage:EncryptionKeyBase64`. A local development key can be generated with:
 
 ```powershell
 [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
