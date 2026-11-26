@@ -277,6 +277,22 @@ BEGIN
     END;
 END $scopx_request_test$;
 
+-- The requester must not claim their own request for review.
+DO $scopx_requester_claim_test$
+BEGIN
+    BEGIN
+      UPDATE public.media_deletion_requests
+         SET status = 'under_review'
+       WHERE id = '30000000-0000-0000-0000-000000000001';
+      RAISE EXCEPTION 'requester unexpectedly claimed their own deletion request';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+    IF (SELECT status FROM public.media_deletion_requests
+         WHERE id = '30000000-0000-0000-0000-000000000001') <> 'submitted' THEN
+      RAISE EXCEPTION 'rejected self-claim changed request state';
+    END IF;
+END $scopx_requester_claim_test$;
+
 -- A distinct active tenant member reviews and approves. Approval remains a
 -- record only: no queue item or physical deletion is created in migration 014.
 SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a3', true);
