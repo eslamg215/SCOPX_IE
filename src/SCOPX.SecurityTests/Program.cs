@@ -306,6 +306,39 @@ static async Task RunAuthHttpIntegrationTestsAsync()
             Console.WriteLine("PASS: " + label);
         }
 
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Add("Origin", "https://app.scopx.test");
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "Allowed CORS origin still requires authentication");
+            Require(response.Headers.TryGetValues("Access-Control-Allow-Origin", out var allowedOrigin)
+                && allowedOrigin.Single() == "https://app.scopx.test",
+                "CORS returns the exact configured origin");
+            Require(!response.Headers.Contains("Access-Control-Allow-Credentials"),
+                "CORS does not enable credentialed cross-origin requests");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+        {
+            request.Headers.Add("Origin", "https://evil.example");
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.Unauthorized, "Disallowed CORS origin remains unauthenticated");
+            Require(!response.Headers.Contains("Access-Control-Allow-Origin"),
+                "CORS does not expose responses to an unlisted origin");
+        }
+        using (var request = new HttpRequestMessage(HttpMethod.Options, "/api/v1/auth/me"))
+        {
+            request.Headers.Add("Origin", "https://app.scopx.test");
+            request.Headers.Add("Access-Control-Request-Method", "GET");
+            request.Headers.Add("Access-Control-Request-Headers", "authorization,x-hospital-id");
+            using var response = await client.SendAsync(request);
+            Check(response, HttpStatusCode.NoContent, "CORS accepts a valid preflight for the configured origin");
+            Require(response.Headers.TryGetValues("Access-Control-Allow-Origin", out var origin)
+                && origin.Single() == "https://app.scopx.test",
+                "CORS preflight echoes only the configured origin");
+            Require(!response.Headers.Contains("Access-Control-Allow-Credentials"),
+                "CORS preflight does not permit credentialed browser requests");
+        }
+
         using (var malformed = await client.PostAsync("/api/v1/auth/login",
             new StringContent("{", Encoding.UTF8, "application/json")))
             Check(malformed, HttpStatusCode.BadRequest, "HTTP login rejects malformed JSON");
