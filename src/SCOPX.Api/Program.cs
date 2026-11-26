@@ -23,7 +23,7 @@ builder.Services.AddScoped<PasswordHashService>();
 // Media routes are intentionally not mapped. The encryption service is ready for
 // the protected pipeline; uploads remain fail-closed until a real scanner is installed.
 builder.Services.AddSingleton<MediaContentProtector>();
-builder.Services.AddSingleton<IMediaMalwareScanner, UnavailableMediaMalwareScanner>();
+builder.Services.AddSingleton<IMediaMalwareScanner, ClamAvMediaMalwareScanner>();
 builder.Services.AddSingleton<ReportSigningService>();
 var databaseConnection = builder.Configuration.GetConnectionString("ScopxDb");
 if (!string.IsNullOrWhiteSpace(databaseConnection))
