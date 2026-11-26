@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using SCOPX.Api.Reports;
 using SCOPX.Api.Media;
+using SCOPX.Api.Authentication;
 
 static void Require(bool condition, string message)
 {
@@ -86,6 +87,17 @@ static void RequireThrows<T>(Action action, string message) where T : Exception
     catch (T) { Console.WriteLine("PASS: " + message); return; }
     throw new InvalidOperationException("FAIL: " + message);
 }
+
+// Authentication header parsing is tested without starting clinical API routes or using real identities.
+Require(AuthHeaderReader.ReadBearer("") is null, "empty authorization header is rejected");
+Require(AuthHeaderReader.ReadBearer("Basic dXNlcjpwYXNz") is null, "non-Bearer authorization schemes are rejected");
+Require(AuthHeaderReader.ReadBearer("Bearer") is null, "Bearer scheme without a token is rejected");
+Require(AuthHeaderReader.ReadBearer("Bearer " + new string('a', 29)) is null, "bearer tokens shorter than the minimum length are rejected");
+Require(AuthHeaderReader.ReadBearer("Bearer " + new string('a', 30)) == new string('a', 30), "minimum-length opaque bearer token is accepted");
+Require(AuthHeaderReader.ReadBearer("bEaReR " + new string('b', 64)) == new string('b', 64), "Bearer scheme matching is case-insensitive");
+Require(AuthHeaderReader.ReadBearer("Bearer   " + new string('c', 64) + "  ") == new string('c', 64), "surrounding bearer-token whitespace is trimmed");
+Require(AuthHeaderReader.ReadBearer("Bearer " + new string('d', 128)) == new string('d', 128), "maximum-length bearer token is accepted");
+Require(AuthHeaderReader.ReadBearer("Bearer " + new string('e', 129)) is null, "bearer tokens longer than the maximum length are rejected");
 
 using var rsa = RSA.Create(3072);
 var privatePem = rsa.ExportPkcs8PrivateKeyPem();
