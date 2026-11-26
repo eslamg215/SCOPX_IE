@@ -127,7 +127,7 @@ if report_api.exists():
     rt=report_api.read_text(encoding='utf-8')
     check('/procedure/{procedureId:guid}' in rt and 'submit-review' in rt and 'MapReportEndpoints' in rt, 'report list, draft, and review routes are present')
     check('FindActiveForUserAndHospitalAsync' in rt and 'AuthHeaderReader.ReadBearer' in rt, 'report API validates session and hospital membership')
-    check('CanWrite(string[] roles)=>roles.Contains("doctor"' in rt and 'CanReview(string[] roles)=>roles.Contains("doctor"' in rt, 'report drafting and review are restricted to doctors')
+    check('private static bool CanWrite(string[] roles) =>' in rt and 'private static bool CanReview(string[] roles) =>' in rt and rt.count('roles.Contains("doctor"') >= 2, 'report drafting and review are restricted to doctors')
 check('MapReportEndpoints' not in program and 'IReportRepository' not in program, 'clinical report routes remain disabled pending audit integration')
 
 # Step 28 media storage scaffold checks
