@@ -255,8 +255,8 @@ BEGIN
       UPDATE public.media_deletion_requests
          SET reason = 'tampered request facts'
        WHERE id = '30000000-0000-0000-0000-000000000001';
-      RAISE EXCEPTION 'request immutable facts were mutable';
-    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+      RAISE EXCEPTION 'runtime role unexpectedly changed immutable request facts';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;
     BEGIN
       UPDATE public.media_deletion_requests
@@ -305,19 +305,19 @@ BEGIN
       UPDATE public.media_deletion_request_events
          SET reason = 'tampered event'
        WHERE request_id = '30000000-0000-0000-0000-000000000001';
-      RAISE EXCEPTION 'request event UPDATE was not rejected';
-    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+      RAISE EXCEPTION 'runtime role unexpectedly updated event history';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;
     BEGIN
       DELETE FROM public.media_deletion_request_events
        WHERE request_id = '30000000-0000-0000-0000-000000000001';
-      RAISE EXCEPTION 'request event DELETE was not rejected';
-    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+      RAISE EXCEPTION 'runtime role unexpectedly deleted event history';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;
     BEGIN
       EXECUTE 'TRUNCATE TABLE public.media_deletion_request_events';
-      RAISE EXCEPTION 'request event TRUNCATE was not rejected';
-    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+      RAISE EXCEPTION 'runtime role unexpectedly truncated event history';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;
 END $scopx_request_test$;
 
@@ -335,6 +335,39 @@ BEGIN
 END $scopx_request_test$;
 
 RESET ROLE;
+
+-- Verify trigger-level immutability as the schema owner (the runtime role is
+-- already denied these statements by column/table privileges above).
+SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a1', true);
+SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b1', true);
+DO $scopx_request_owner_test$
+BEGIN
+    BEGIN
+      UPDATE public.media_deletion_requests
+         SET reason = 'owner-level tamper attempt'
+       WHERE id = '30000000-0000-0000-0000-000000000001';
+      RAISE EXCEPTION 'database trigger allowed request fact mutation';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+      UPDATE public.media_deletion_request_events
+         SET reason = 'owner-level event tamper attempt'
+       WHERE request_id = '30000000-0000-0000-0000-000000000001';
+      RAISE EXCEPTION 'database trigger allowed event UPDATE';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+      DELETE FROM public.media_deletion_request_events
+       WHERE request_id = '30000000-0000-0000-0000-000000000001';
+      RAISE EXCEPTION 'database trigger allowed event DELETE';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+      EXECUTE 'TRUNCATE TABLE public.media_deletion_request_events';
+      RAISE EXCEPTION 'database trigger allowed event TRUNCATE';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+END $scopx_request_owner_test$;
 
 -- Exercise the media deletion lifecycle gates as the schema owner in tenant A.
 SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b1', true);
