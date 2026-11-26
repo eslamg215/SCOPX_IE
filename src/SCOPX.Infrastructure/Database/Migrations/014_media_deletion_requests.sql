@@ -124,6 +124,10 @@ BEGIN
     END IF;
 
     IF OLD.status = 'submitted' AND NEW.status = 'under_review' THEN
+      IF actor_id = OLD.requested_by_user_id THEN
+        RAISE EXCEPTION 'requester cannot review their own request'
+          USING ERRCODE = '42501';
+      END IF;
       NEW.reviewer_user_id := actor_id;
       NEW.decision_reason := NULL;
       NEW.decided_at := NULL;
