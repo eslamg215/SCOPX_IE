@@ -62,7 +62,7 @@ public sealed class ReportSigningService(IConfiguration configuration)
         {
             rsa.ImportFromPem(privatePem);
         }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is ArgumentException or CryptographicException)
         {
             throw new InvalidOperationException("Report signing private key PEM is invalid.", ex);
         }
@@ -125,7 +125,7 @@ public sealed class ReportSigningService(IConfiguration configuration)
         ArgumentNullException.ThrowIfNull(input);
         if (input.HospitalId == Guid.Empty || input.ReportId == Guid.Empty ||
             input.SignerMembershipId == Guid.Empty || input.ReportVersion < 1 ||
-            input.DocumentSha256.Length != 64 ||
+            string.IsNullOrEmpty(input.DocumentSha256) || input.DocumentSha256.Length != 64 ||
             input.DocumentSha256.Any(ch => !Uri.IsHexDigit(ch) || char.IsUpper(ch)) ||
             input.AuthenticationMethod is not ("password" or "mfa" or "hardware_key") ||
             input.ReauthenticatedAt > input.SignedAt ||
@@ -138,7 +138,7 @@ public sealed class ReportSigningService(IConfiguration configuration)
         ArgumentNullException.ThrowIfNull(payload);
         if (payload.HospitalId == Guid.Empty || payload.ReportId == Guid.Empty ||
             payload.SignerMembershipId == Guid.Empty || payload.ReportVersion < 1 ||
-            payload.DocumentSha256.Length != 64 ||
+            string.IsNullOrEmpty(payload.DocumentSha256) || payload.DocumentSha256.Length != 64 ||
             payload.DocumentSha256.Any(ch => !Uri.IsHexDigit(ch) || char.IsUpper(ch)) ||
             payload.AuthenticationMethod is not ("password" or "mfa" or "hardware_key") ||
             payload.CanonicalizationVersion != CanonicalizationVersion ||
