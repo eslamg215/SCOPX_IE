@@ -14,9 +14,10 @@
 
 ## Explicitly not complete
 
-- There is no signing API endpoint and no report-signing UI.
-- There is no strong re-authentication flow wired to report signing.
-- There is no private-key provisioning, managed key storage, rotation, public-key registry, or signature-verification service.
+- A provider-neutral RSA-PSS-SHA256 signing/verification service now exists. It signs a canonical payload binding tenant, report, version, document digest, signer membership, re-authentication time/method, and key ID. It requires `Reports:SigningPrivateKeyPem` and `Reports:SigningKeyId`; without them it fails closed.
+- There is still no signing API endpoint and no report-signing UI. The signing service is not yet wired to the report repository or signature table.
+- There is no strong re-authentication flow wired to report signing; the service validates supplied re-authentication metadata but does not itself verify the user's password or MFA.
+- There is no managed key storage, rotation, public-key registry, or persisted trusted verification-key lifecycle. Verification currently requires a public PEM supplied by the caller.
 - The CI signature fixture uses dummy bytes solely to test database constraints and immutability. It is not a cryptographic signature and proves no signer identity.
 - No legal/qualified electronic-signature compliance is claimed. Legal requirements vary by jurisdiction and must be independently reviewed.
 - Amendment creation, correction/revocation workflow, PDF rendering, final document canonicalization across PDF and structured report fields, and clinical review are outstanding.
