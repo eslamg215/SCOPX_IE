@@ -35,7 +35,10 @@ public static class ApiCorsExtensions
             options.AddPolicy("scopx", policy =>
             {
                 if (origins.Length > 0)
-                    policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
+                    policy.WithOrigins(origins)
+                        .WithMethods("GET", "POST", "OPTIONS")
+                        .WithHeaders("Authorization", "Content-Type", "X-Hospital-ID", "X-Correlation-ID")
+                        .WithExposedHeaders("X-Correlation-ID");
             });
         });
         return services;
