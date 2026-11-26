@@ -121,7 +121,7 @@ public sealed class NpgsqlReportRepository(string connectionString) : IReportRep
     }
 
     public async Task<bool> UpdateDraftAsync(
-        Guid hospitalId, Guid actorUserId, Guid reportId, string body, CancellationToken ct = default)
+        Guid hospitalId, Guid actorUserId, Guid reportId, int expectedVersion, string body, CancellationToken ct = default)
     {
         const string sql = """
             UPDATE procedure_reports
@@ -129,7 +129,7 @@ public sealed class NpgsqlReportRepository(string connectionString) : IReportRep
                 report_body_sha256=@sha,
                 report_version=report_version+1,
                 updated_at=now()
-            WHERE hospital_id=@hospital AND id=@id AND status='draft' AND signed_at IS NULL;
+            WHERE hospital_id=@hospital AND id=@id AND report_version=@expected AND status='draft' AND signed_at IS NULL;
             """;
 
         await using var connection = new NpgsqlConnection(connectionString);
@@ -140,6 +140,7 @@ public sealed class NpgsqlReportRepository(string connectionString) : IReportRep
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("hospital", hospitalId);
         command.Parameters.AddWithValue("id", reportId);
+        command.Parameters.AddWithValue("expected", expectedVersion);
         command.Parameters.AddWithValue("body", NpgsqlDbType.Text, body);
         command.Parameters.AddWithValue("sha", NpgsqlDbType.Varchar, HashBody(body));
 
