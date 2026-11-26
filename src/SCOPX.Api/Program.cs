@@ -33,10 +33,12 @@ if (!string.IsNullOrWhiteSpace(databaseConnection))
     builder.Services.AddScoped<IHospitalMembershipRepository>(_ => new NpgsqlHospitalMembershipRepository(databaseConnection));
 }
 builder.Services.AddScopxRateLimiting();
+builder.Services.AddScopxCors(builder.Configuration);
 
 var app = builder.Build();
 app.UseScopxExceptionHandling();
 app.UseScopxSecurityHeaders();
+app.UseCors("scopx");
 app.UseRateLimiter();
 
 app.MapGet("/", () => Results.Ok(new
