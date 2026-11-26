@@ -1,5 +1,5 @@
 -- Disposable-database integration smoke test for SCOPX tenant RLS and hardening.
--- Run only after migrations 001-009 and Grant-RuntimePrivileges.sql.
+-- Run only after migrations 001-010 and Grant-RuntimePrivileges.sql.
 -- The entire fixture set is rolled back. All records are synthetic.
 BEGIN;
 
@@ -75,6 +75,10 @@ BEGIN
     IF n <> 1 THEN RAISE EXCEPTION 'media RLS failed for tenant A: %', n; END IF;
     SELECT count(*) INTO n FROM public.procedure_reports;
     IF n <> 1 THEN RAISE EXCEPTION 'report RLS failed for tenant A: %', n; END IF;
+    SELECT count(*) INTO n FROM public.procedure_report_versions;
+    IF n <> 1 THEN RAISE EXCEPTION 'report-version RLS failed for tenant A: %', n; END IF;
+    SELECT count(*) INTO n FROM public.procedure_report_signatures;
+    IF n <> 0 THEN RAISE EXCEPTION 'report-signature RLS failed for tenant A: %', n; END IF;
     SELECT count(*) INTO n FROM public.audit_events;
     IF n <> 1 THEN RAISE EXCEPTION 'audit RLS failed for tenant A: %', n; END IF;
 
@@ -108,6 +112,10 @@ BEGIN
     IF n <> 1 THEN RAISE EXCEPTION 'media RLS failed for tenant B: %', n; END IF;
     SELECT count(*) INTO n FROM public.procedure_reports;
     IF n <> 1 THEN RAISE EXCEPTION 'report RLS failed for tenant B: %', n; END IF;
+    SELECT count(*) INTO n FROM public.procedure_report_versions;
+    IF n <> 1 THEN RAISE EXCEPTION 'report-version RLS failed for tenant B: %', n; END IF;
+    SELECT count(*) INTO n FROM public.procedure_report_signatures;
+    IF n <> 0 THEN RAISE EXCEPTION 'report-signature RLS failed for tenant B: %', n; END IF;
     SELECT count(*) INTO n FROM public.audit_events;
     IF n <> 1 THEN RAISE EXCEPTION 'audit RLS failed for tenant B: %', n; END IF;
 END $$;
@@ -157,5 +165,63 @@ BEGIN
     EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
 END $$;
+
+-- A schema-level fixture verifies that signing requires a reviewed current version,
+-- creates an immutable artifact, and freezes the signed report. The bytes below are
+-- intentionally dummy test data; they are NOT a valid cryptographic signature.
+UPDATE public.procedure_reports
+SET status = 'review'
+WHERE id = '10000000-0000-0000-0000-000000000001';
+
+INSERT INTO public.procedure_report_signatures
+    (hospital_id, report_id, report_version, document_sha256, signer_membership_id,
+     signed_at, reauthenticated_at, authentication_method, canonicalization_version,
+     signature_algorithm, signing_key_id, signature_value)
+SELECT hospital_id, id, report_version, report_body_sha256,
+       '00000000-0000-0000-0000-0000000000c1',
+       now(), now() - interval '1 minute', 'password', 'SCOPX-REPORT-TEXT-V1',
+       'RSA-PSS-SHA256', 'ci-test-placeholder-not-crypto', decode(repeat('a5', 256), 'hex')
+FROM public.procedure_reports
+WHERE id = '10000000-0000-0000-0000-000000000001';
+
+DO $
+DECLARE report_status text;
+BEGIN
+    SELECT status INTO report_status FROM public.procedure_reports
+    WHERE id = '10000000-0000-0000-0000-000000000001';
+    IF report_status <> 'signed' THEN
+        RAISE EXCEPTION 'signature insert did not move the reviewed report to signed state';
+    END IF;
+
+    BEGIN
+        UPDATE public.procedure_reports
+        SET report_body = 'tampered after signature'
+        WHERE id = '10000000-0000-0000-0000-000000000001';
+        RAISE EXCEPTION 'signed report mutation was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
+    BEGIN
+        UPDATE public.procedure_report_signatures
+        SET signing_key_id = 'tampered'
+        WHERE report_id = '10000000-0000-0000-0000-000000000001';
+        RAISE EXCEPTION 'signature artifact UPDATE was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
+    BEGIN
+        DELETE FROM public.procedure_report_versions
+        WHERE report_id = '10000000-0000-0000-0000-000000000001';
+        RAISE EXCEPTION 'report version DELETE was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
+    BEGIN
+        EXECUTE 'TRUNCATE TABLE public.procedure_report_signatures';
+        RAISE EXCEPTION 'signature artifact TRUNCATE was not rejected';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+END $;
+
 
 ROLLBACK;
