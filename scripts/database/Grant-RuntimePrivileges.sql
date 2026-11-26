@@ -58,3 +58,18 @@ REVOKE ALL ON TABLE
 FROM scopx_runtime;
 
 -- No CREATE, ALTER, DROP, ownership, sequence, or migration privileges are granted.
+
+
+-- Optional report version/signature artifacts (migration 010). Keep them
+-- append-only for the API runtime; no UPDATE, DELETE, or TRUNCATE privileges.
+DO $$
+BEGIN
+    IF to_regclass('public.procedure_report_versions') IS NOT NULL THEN
+        EXECUTE 'GRANT SELECT, INSERT ON TABLE public.procedure_report_versions TO scopx_runtime';
+        EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE ON TABLE public.procedure_report_versions FROM scopx_runtime';
+    END IF;
+    IF to_regclass('public.procedure_report_signatures') IS NOT NULL THEN
+        EXECUTE 'GRANT SELECT, INSERT ON TABLE public.procedure_report_signatures TO scopx_runtime';
+        EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE ON TABLE public.procedure_report_signatures FROM scopx_runtime';
+    END IF;
+END $$;
