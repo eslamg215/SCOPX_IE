@@ -18,12 +18,14 @@ runner=ROOT/'scripts/database/Apply-Migrations.py'
 text=runner.read_text(encoding='utf-8')
 check('--single-transaction' in text, 'migration runner wraps each migration in transaction')
 check('sha256' in text and 'checksum changed' in text.lower(), 'migration runner checks historical checksums')
-check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text and 'include-report-signing-draft' in text and 'include-retention-draft' in text and 'include-retention-hardening-draft' in text, 'security-sensitive migration groups require explicit flags')
+check('include-rls-draft' in text and 'include-auth-draft' in text and 'include-audit-hardening-draft' in text and 'include-tenant-hardening-draft' in text and 'include-report-signing-draft' in text and 'include-retention-draft' in text and 'include-retention-hardening-draft' in text and 'include-retention-stamping-draft' in text, 'security-sensitive migration groups require explicit flags')
 check('"006_user_sessions.sql"' in text and '"008_role_scope_enforcement.sql"' in text and '"009_hospital_directory_rls.sql"' in text, 'session and tenant-hardening migrations are excluded by default')
 check('007_audit_immutability_hardening.sql' in text and 'include_audit_hardening_draft' in text, 'audit hardening draft is excluded by default unless explicitly opted in')
 check('010_report_versioning_signatures.sql' in text and 'include_report_signing_draft' in text, 'report signing evidence migration is excluded by default unless explicitly opted in')
 check('011_media_retention_lifecycle.sql' in text and 'include_retention_draft' in text, 'media retention lifecycle migration is excluded by default unless explicitly opted in')
 check('012_media_retention_invariant_hardening.sql' in text and 'include_retention_hardening_draft' in text, 'media retention invariant hardening migration requires a separate explicit opt-in')
+check('013_media_retention_deadline_stamping.sql' in text and 'include_retention_stamping_draft' in text, 'new-media retention deadline stamping migration requires a separate explicit opt-in')
+check('args.include_retention_draft and args.include_retention_hardening_draft' in text, 'retention stamping opt-in requires both lifecycle and invariant-hardening opt-ins')
 program=(API/'Program.cs').read_text(encoding='utf-8')
 check('UseExceptionHandler' in program, 'API has generic exception handler')
 check('AddRateLimiter' in program and 'PermitLimit = 120' in program, 'rate limiting configured in API scaffold')
@@ -179,6 +181,15 @@ if retention_hardening.exists():
     rh=retention_hardening.read_text(encoding='utf-8')
     check('media_deletion_queue_one_open_per_asset_idx' in rh and "status IN ('pending','processing','failed')" in rh, 'only one active media deletion request can exist per asset')
     check('scopx_guard_media_legal_hold_mutation' in rh and 'legal hold placement facts are immutable' in rh and 'released legal hold records are immutable' in rh, 'legal hold placement and release are one-way immutable facts')
+
+retention_stamping=MIGRATIONS/'013_media_retention_deadline_stamping.sql'
+check(retention_stamping.exists(), 'Step 45 new-media retention deadline stamping migration exists')
+if retention_stamping.exists():
+    rsm=retention_stamping.read_text(encoding='utf-8')
+    check('BEFORE INSERT ON public.media_assets' in rsm and 'NEW.created_at + make_interval(days => policy_days)' in rsm, 'new media retention deadline derives from creation time and explicit policy days')
+    check('IF NOT FOUND OR policy_enabled IS DISTINCT FROM true' in rsm and 'NEW.retention_until := NULL' in rsm, 'missing or disabled retention policies leave new media without a deletion deadline')
+    check('BEFORE UPDATE OF retention_until, created_at, hospital_id' in rsm and 'media retention stamp and creation tenant are immutable' in rsm, 'retention stamps and source creation facts cannot be changed later')
+    check('No deletion worker' in rsm or 'No worker' in rsm, 'retention stamping does not activate a deletion worker')
 
 media_endpoints=(API/'Media/MediaEndpoints.cs').read_text(encoding='utf-8')
 media_repo=(infra/'Media/NpgsqlMediaRepository.cs').read_text(encoding='utf-8')
