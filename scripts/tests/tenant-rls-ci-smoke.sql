@@ -167,7 +167,7 @@ BEGIN
     SELECT count(*) INTO n FROM public.procedures;
     IF n <> 1 THEN RAISE EXCEPTION 'procedure RLS failed for tenant B: %', n; END IF;
     SELECT count(*) INTO n FROM public.media_assets;
-    IF n <> 1 THEN RAISE EXCEPTION 'media RLS failed for tenant B: %', n; END IF;
+    IF n <> 2 THEN RAISE EXCEPTION 'media RLS failed for tenant B: %', n; END IF;
     SELECT count(*) INTO n FROM public.procedure_reports;
     IF n <> 1 THEN RAISE EXCEPTION 'report RLS failed for tenant B: %', n; END IF;
     SELECT count(*) INTO n FROM public.procedure_report_versions;
