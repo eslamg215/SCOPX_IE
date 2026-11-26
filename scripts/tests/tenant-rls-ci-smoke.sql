@@ -15,7 +15,7 @@ VALUES
  ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', repeat('a',64), now() - interval '1 minute', now() + interval '1 hour', NULL),
  ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000a1', repeat('b',64), now() - interval '2 hours', now() - interval '1 hour', NULL),
  ('30000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000000a1', repeat('c',64), now() - interval '1 minute', now() + interval '1 hour', now()),
- ('30000000-0000-0000-0000-0000000000a004', '00000000-0000-0000-0000-0000000000a2', repeat('d',64), now() - interval '1 minute', now() + interval '1 hour', NULL);
+ ('30000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-0000000000a2', repeat('d',64), now() - interval '1 minute', now() + interval '1 hour', NULL);
 
 DO $session_fixture_test$
 DECLARE active_count integer; expired_count integer; revoked_count integer; wrong_user_count integer;
