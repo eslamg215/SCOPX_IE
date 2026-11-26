@@ -5,6 +5,7 @@
 - Migration 010 adds a SHA-256 digest for each report body and a canonical text representation version.
 - Every report insert and every content revision creates an immutable snapshot in \`procedure_report_versions\`.
 - Draft edits increment the report version and update the canonical SHA-256 digest in the same database transaction.
+- Draft updates require the expected current version, preventing stale clients from silently overwriting a newer edit.
 - Historical reports are preserved with the explicit legacy canonicalization label \`LEGACY-RAW-UTF8-V1\`; they are not eligible for signing until a new canonical draft version is created.
 - \`procedure_report_signatures\` stores the report/version digest, signer hospital membership, re-authentication time and method, canonicalization version, RSA-PSS-SHA256 algorithm, key identifier, and signature bytes.
 - Database triggers allow a signature artifact only for the current reviewed report version, transition that report to signed, and prevent mutation of the signed report.
