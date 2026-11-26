@@ -21,6 +21,6 @@
 
 CI applies this draft only to a disposable PostgreSQL 17 database, runs tenant-isolation checks for retention policies, legal holds, and deletion queue rows, verifies that active legal holds block queueing, verifies that an eligible synthetic item can be queued after release, and confirms deletion events are append-only. These checks do not establish production security or legal compliance.
 
-The migration runner excludes migration 011 by default. To include it in a disposable, reviewed database, both --include-rls-draft and --include-retention-draft are required.
+The migration runner excludes migration 011 by default. To include it in a disposable, reviewed database, both --include-rls-draft and --include-retention-draft are required; include --include-retention-hardening-draft to apply migration 012.
 
 **Status: schema foundation only; no deletion worker or media API activation. Synthetic data only.**
