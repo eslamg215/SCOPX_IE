@@ -193,7 +193,7 @@ if request_migration.exists():
     check('request facts are immutable' in rq and 'append-only' in rq and 'BEFORE TRUNCATE' in rq, 'request facts and decision history are protected against tampering')
     check('requester cannot approve or reject their own request' in rq and 'active membership' in rq, 'request workflow enforces four-eyes approval and active tenant membership')
     check('ENABLE ROW LEVEL SECURITY' in rq and 'FORCE ROW LEVEL SECURITY' in rq, 'request and event tables enforce tenant RLS')
-    check('does not' in rq.lower() and 'execution queue' in rq.lower(), 'request workflow is separate from physical deletion execution')
+    check('No approval-to-queue action' in rq and 'execution queue' in rq.lower(), 'request workflow is separate from physical deletion execution')
 
 retention_stamping=MIGRATIONS/'013_media_retention_deadline_stamping.sql'
 check(retention_stamping.exists(), 'Step 45 new-media retention deadline stamping migration exists')
