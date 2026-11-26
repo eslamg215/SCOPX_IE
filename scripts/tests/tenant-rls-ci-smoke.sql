@@ -150,7 +150,7 @@ BEGIN
     END;
 END $scopx_runtime_test$;
 
-DO $
+DO $$
 DECLARE n bigint;
 BEGIN
     SELECT count(*) INTO n FROM public.hospitals;
