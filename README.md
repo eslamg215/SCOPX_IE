@@ -191,7 +191,7 @@ See `docs/STEP-41-MEDIA-PROTECTION-FOUNDATION.md` for the encryption envelope, k
 
 ## Step 42 — Immutable report versions and signature evidence
 
-Migration 010 adds append-only report snapshots, canonical SHA-256 digests, signature evidence metadata, tenant RLS, and database guards that freeze signed reports. Draft edits create a new report version. A signature can only be recorded for the current reviewed version and must carry recent re-authentication metadata.
+Migration 010 adds append-only report snapshots, canonical SHA-256 digests, signature evidence metadata, tenant RLS, and database guards that freeze signed reports. Draft edits create a new report version, and stale updates are rejected by an expected-version check. A signature can only be recorded for the current reviewed version and must carry recent re-authentication metadata.
 
 The migration is **excluded from normal local runs** and requires explicit `--include-rls-draft --include-report-signing-draft` flags. See `docs/STEP-42-REPORT-VERSIONING-SIGNATURE-EVIDENCE.md`.
 
