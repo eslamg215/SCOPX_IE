@@ -63,8 +63,8 @@ BEGIN
     SELECT retention_until INTO deadline FROM public.media_assets
      WHERE id = '00000000-0000-0000-0000-0000000000f1';
     IF deadline IS DISTINCT FROM (SELECT created_at + interval '1 day' FROM public.media_assets WHERE id = '00000000-0000-0000-0000-0000000000f1')
-       OR deadline > now() THEN
-        RAISE EXCEPTION 'enabled retention policy did not stamp created_at plus retention_days';
+       OR (SELECT created_at < transaction_timestamp() FROM public.media_assets WHERE id = '00000000-0000-0000-0000-0000000000f1') THEN
+        RAISE EXCEPTION 'enabled policy did not stamp from a server-controlled creation timestamp';
     END IF;
     IF (SELECT retention_until FROM public.media_assets WHERE id = '00000000-0000-0000-0000-0000000000f2') IS NOT NULL THEN
         RAISE EXCEPTION 'disabled policy accepted or stamped a caller-supplied retention deadline';
@@ -84,6 +84,12 @@ BEGIN
         UPDATE public.media_assets SET retention_until = now() - interval '1 day'
          WHERE id = '00000000-0000-0000-0000-0000000000f2';
         RAISE EXCEPTION 'runtime media retention stamp was mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+        UPDATE public.media_assets SET created_at = created_at - interval '100 years'
+         WHERE id = '00000000-0000-0000-0000-0000000000f2';
+        RAISE EXCEPTION 'runtime media creation timestamp was mutable';
     EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
 END $scopx_test$;
@@ -223,6 +229,15 @@ BEGIN
     EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
 END $scopx_test$;
+
+-- Model a pre-existing, expired legacy asset for queue-guard coverage. This
+-- privileged CI fixture bypass is unavailable to the application runtime role.
+SET session_replication_role = replica;
+UPDATE public.media_assets
+   SET created_at = now() - interval '2 days',
+       retention_until = now() - interval '1 day'
+ WHERE id = '00000000-0000-0000-0000-0000000000f1';
+SET session_replication_role = origin;
 
 INSERT INTO public.media_deletion_queue
     (hospital_id, media_id, reason, requested_by_user_id, not_before)
