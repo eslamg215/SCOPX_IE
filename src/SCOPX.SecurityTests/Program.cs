@@ -6,7 +6,7 @@ using SCOPX.Api.Tenancy;
 using SCOPX.Api.Security;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Server.Features;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
