@@ -210,13 +210,13 @@ FOR EACH ROW EXECUTE FUNCTION public.scopx_record_media_deletion_request_event()
 -- SECURITY DEFINER entry points if their signatures are ever changed.
 REVOKE ALL ON FUNCTION public.scopx_guard_media_deletion_request() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.scopx_record_media_deletion_request_event() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.scopx_reject_media_deletion_request_event_mutation() FROM PUBLIC;
 
 CREATE OR REPLACE FUNCTION public.scopx_reject_media_deletion_request_event_mutation()
-RETURNS trigger LANGUAGE plpgsql AS $$
+RETURNS trigger LANGUAGE plpgsql AS $
 BEGIN
   RAISE EXCEPTION 'media deletion request events are append-only' USING ERRCODE = '55000';
-END $$;
+END $;
+REVOKE ALL ON FUNCTION public.scopx_reject_media_deletion_request_event_mutation() FROM PUBLIC;
 CREATE TRIGGER media_deletion_request_events_immutable
 BEFORE UPDATE OR DELETE ON public.media_deletion_request_events
 FOR EACH ROW EXECUTE FUNCTION public.scopx_reject_media_deletion_request_event_mutation();
