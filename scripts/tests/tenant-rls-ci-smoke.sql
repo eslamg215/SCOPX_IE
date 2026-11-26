@@ -318,6 +318,26 @@ BEGIN
       RAISE EXCEPTION 'approval unexpectedly enqueued deletion';
     END IF;
     BEGIN
+      EXECUTE 'SELECT reviewer_user_id FROM public.media_deletion_requests LIMIT 1';
+      RAISE EXCEPTION 'runtime role unexpectedly read reviewer identity';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+    BEGIN
+      EXECUTE 'SELECT decision_reason FROM public.media_deletion_requests LIMIT 1';
+      RAISE EXCEPTION 'runtime role unexpectedly read internal decision reason';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+    BEGIN
+      EXECUTE 'SELECT actor_user_id FROM public.media_deletion_request_events LIMIT 1';
+      RAISE EXCEPTION 'runtime role unexpectedly read event actor identity';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+    BEGIN
+      EXECUTE 'SELECT reason FROM public.media_deletion_request_events LIMIT 1';
+      RAISE EXCEPTION 'runtime role unexpectedly read internal event reason';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+    BEGIN
       INSERT INTO public.media_deletion_request_events
         (hospital_id, request_id, media_id, to_status, actor_user_id, reason)
       VALUES
