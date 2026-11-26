@@ -31,6 +31,12 @@ jobs:
       - name: Build development bootstrap tool
         run: dotnet build src/SCOPX.Bootstrap/SCOPX.Bootstrap.csproj --configuration Release
 
+      - name: Build report-signing security tests
+        run: dotnet build src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release
+
+      - name: Run report-signing cryptography tests
+        run: dotnet run --project src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release --no-build
+
       - name: Build Windows workstation
         run: dotnet build src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release
 
