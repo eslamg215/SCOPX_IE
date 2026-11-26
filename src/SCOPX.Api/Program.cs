@@ -68,7 +68,7 @@ app.MapGet("/api/v1/system", () => Results.Ok(new
 // They must not be exposed until append-only audit recording is wired into every
 // sensitive operation and platform administration uses a separately restricted
 // connection with independently tested authorization.
-app.MapHealthChecks("/health").RequireRateLimiting("api");
+app.MapHealthChecks("/health");
 
 // Readiness is distinct from liveness: this probe verifies only that the configured
 // PostgreSQL connection can open and execute SELECT 1. It does not validate schema,
@@ -86,12 +86,16 @@ app.MapGet("/health/ready", async (CancellationToken ct) =>
         await command.ExecuteScalarAsync(ct);
         return Results.Ok(new { status = "ready", database = "reachable" });
     }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+    {
+        throw;
+    }
     catch (Exception ex)
     {
         app.Logger.LogWarning("Database readiness probe failed ({ExceptionType}).", ex.GetType().Name);
         return Results.Json(new { status = "not_ready", database = "unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
-}).RequireRateLimiting("api");
+});
 
 if (!string.IsNullOrWhiteSpace(databaseConnection))
 {
