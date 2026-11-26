@@ -116,7 +116,41 @@ SET LOCAL ROLE scopx_runtime;
 SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a1', true);
 SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b1', true);
 
-DO $$
+-- Exercise retention stamping through the actual least-privilege runtime role.
+-- The hospital-A policy is enabled for one day; a hostile caller-supplied
+-- deadline must be ignored by the database trigger.
+INSERT INTO public.media_assets
+    (id, hospital_id, procedure_id, media_type, storage_key, file_name,
+     content_type, file_size_bytes, sha256_hex, retention_until)
+VALUES
+    ('00000000-0000-0000-0000-0000000000f4',
+     '00000000-0000-0000-0000-0000000000b1',
+     '00000000-0000-0000-0000-0000000000e1',
+     'image', 'ci/runtime-stamped.jpg', 'runtime-stamped.jpg',
+     'image/jpeg', 1, repeat('d',64), now() - interval '100 years');
+
+DO $
+DECLARE stamped_created_at timestamptz; stamped_deadline timestamptz;
+BEGIN
+    SELECT created_at, retention_until
+      INTO stamped_created_at, stamped_deadline
+      FROM public.media_assets
+     WHERE id = '00000000-0000-0000-0000-0000000000f4';
+    IF stamped_created_at IS DISTINCT FROM transaction_timestamp()
+       OR stamped_deadline IS DISTINCT FROM stamped_created_at + interval '1 day' THEN
+        RAISE EXCEPTION 'runtime role insert did not apply the enabled tenant retention policy';
+    END IF;
+
+    BEGIN
+        UPDATE public.media_assets
+           SET retention_until = now() - interval '1 day'
+         WHERE id = '00000000-0000-0000-0000-0000000000f4';
+        RAISE EXCEPTION 'runtime role changed an immutable retention deadline';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+END $;
+
+DO $
 DECLARE n bigint;
 BEGIN
     SELECT count(*) INTO n FROM public.hospitals;
