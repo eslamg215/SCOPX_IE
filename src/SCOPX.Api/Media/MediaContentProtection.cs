@@ -21,16 +21,22 @@ public sealed class MediaContentProtector(IConfiguration configuration)
         var nonce = RandomNumberGenerator.GetBytes(NonceSize);
         var ciphertext = new byte[plaintext.Length];
         var tag = new byte[TagSize];
-        using (var aes = new AesGcm(key, TagSize))
+        try
+        {
+            using var aes = new AesGcm(key, TagSize);
             aes.Encrypt(nonce, plaintext, ciphertext, tag, AssociatedData(hospitalId, mediaId));
 
-        var envelope = new byte[HeaderSize + ciphertext.Length];
-        Magic.CopyTo(envelope, 0);
-        nonce.CopyTo(envelope, 4);
-        tag.CopyTo(envelope, 4 + NonceSize);
-        ciphertext.CopyTo(envelope, HeaderSize);
-        CryptographicOperations.ZeroMemory(key);
-        return envelope;
+            var envelope = new byte[HeaderSize + ciphertext.Length];
+            Magic.CopyTo(envelope, 0);
+            nonce.CopyTo(envelope, 4);
+            tag.CopyTo(envelope, 4 + NonceSize);
+            ciphertext.CopyTo(envelope, HeaderSize);
+            return envelope;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+        }
     }
 
     public byte[] Decrypt(Guid hospitalId, Guid mediaId, ReadOnlySpan<byte> envelope)
@@ -121,4 +127,13 @@ public static class MediaFileSignatureValidator
 public interface IMediaMalwareScanner
 {
     Task<bool> IsCleanAsync(ReadOnlyMemory<byte> content, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Safe default: media uploads remain unavailable until a real malware scanner is configured.
+/// </summary>
+public sealed class UnavailableMediaMalwareScanner : IMediaMalwareScanner
+{
+    public Task<bool> IsCleanAsync(ReadOnlyMemory<byte> content, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("No malware scanning engine is configured.");
 }
