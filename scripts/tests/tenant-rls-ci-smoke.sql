@@ -117,7 +117,7 @@ SELECT set_config('scopx.user_id', '00000000-0000-0000-0000-0000000000a1', true)
 SELECT set_config('scopx.hospital_id', '00000000-0000-0000-0000-0000000000b1', true);
 
 -- Exercise retention stamping through the actual least-privilege runtime role.
--- The hospital-A policy is enabled for one day; a hostile caller-supplied
+-- The hospital-A policy is enabled for thirty days after the preceding policy-change test; a hostile caller-supplied
 -- deadline must be ignored by the database trigger.
 INSERT INTO public.media_assets
     (id, hospital_id, procedure_id, media_type, storage_key, file_name,
@@ -137,7 +137,7 @@ BEGIN
       FROM public.media_assets
      WHERE id = '00000000-0000-0000-0000-0000000000f4';
     IF stamped_created_at IS DISTINCT FROM transaction_timestamp()
-       OR stamped_deadline IS DISTINCT FROM stamped_created_at + interval '1 day' THEN
+       OR stamped_deadline IS DISTINCT FROM stamped_created_at + interval '30 days' THEN
         RAISE EXCEPTION 'runtime role insert did not apply the enabled tenant retention policy';
     END IF;
 
