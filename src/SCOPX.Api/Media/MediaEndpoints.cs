@@ -42,7 +42,7 @@ public static class MediaEndpoints
                 if (file is null || file.Length <= 0 || file.Length > MaxBytes)
                     return Results.BadRequest(new { error = "invalid_file_size", maxBytes = MaxBytes });
 
-                var normalizedName = file.FileName.Replace('\\\\', '/');
+                var normalizedName = file.FileName.Replace('\\', '/');
                 var safeName = Path.GetFileName(normalizedName);
                 var extension = Path.GetExtension(safeName);
                 if (string.IsNullOrWhiteSpace(safeName) || safeName.Length > 255)
