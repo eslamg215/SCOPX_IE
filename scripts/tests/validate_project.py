@@ -33,6 +33,11 @@ check('UseScopxExceptionHandling' in program and 'UseExceptionHandler' in pipeli
 check('AddScopxRateLimiting' in program and 'PermitLimit = 120' in pipeline and 'PermitLimit = 10' in pipeline, 'rate limiting configured in API scaffold')
 check('UseScopxSecurityHeaders' in program and 'X-Correlation-ID' in pipeline and 'Content-Security-Policy' in pipeline, 'request correlation and security headers present')
 check('"/health/ready"' in program and 'SELECT 1' in program, 'API readiness endpoint checks configured database connectivity')
+health_start=program.index('app.MapHealthChecks("/health")')
+health_end=program.index('if (!string.IsNullOrWhiteSpace(databaseConnection))', health_start)
+health_routes=program[health_start:health_end]
+check('RequireRateLimiting' not in health_routes, 'liveness and readiness probes are not throttled by API rate limits')
+check('catch (OperationCanceledException) when (ct.IsCancellationRequested)' in program, 'database readiness probe preserves host/request cancellation')
 auth_endpoints=(API/'Authentication/AuthEndpoints.cs').read_text(encoding='utf-8')
 check('RequestSizeLimitAttribute(16 * 1024)' in auth_endpoints, 'login endpoint enforces a 16 KiB request-body limit')
 security_tests=(ROOT/'src/SCOPX.SecurityTests/Program.cs').read_text(encoding='utf-8')
