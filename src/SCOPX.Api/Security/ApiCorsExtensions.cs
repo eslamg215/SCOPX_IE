@@ -13,7 +13,7 @@ public static class ApiCorsExtensions
         foreach (var origin in origins)
         {
             if (string.IsNullOrWhiteSpace(origin)
-                || origin.Contains('*', StringComparison.Ordinal)
+                || origin.Contains('*')
                 || !Uri.TryCreate(origin, UriKind.Absolute, out var uri)
                 || uri.Scheme is not ("https" or "http")
                 || (uri.Scheme == "http" && !uri.IsLoopback)
