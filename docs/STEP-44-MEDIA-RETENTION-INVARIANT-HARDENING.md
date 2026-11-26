@@ -18,7 +18,7 @@ GitHub Actions run #390 passed on commit `75611b2a981f4c745db2debeaf732018bfffd1
 
 ## Step 45 — New-media retention deadline stamping (draft)
 
-Migration 013 stamps `media_assets.retention_until` only when a new recording is inserted and that hospital has an explicitly enabled retention policy. The deadline is calculated from the row's `created_at` plus the configured `retention_days`. A missing or disabled policy forces the deadline to NULL, even if a caller tries to supply a value.
+Migration 013 stamps `media_assets.retention_until` only when a new recording is inserted and that hospital has an explicitly enabled retention policy. The deadline is calculated from the row's `created_at` plus the configured `retention_days`. The database also assigns the creation timestamp, so callers cannot backdate a new asset. A missing or disabled policy forces the deadline to NULL, even if a caller tries to supply a value.
 
 The stamp, creation timestamp, and hospital association are immutable after insertion. Changing a hospital policy does not recalculate existing media deadlines. No default retention period is introduced. Migration 013 is excluded by default and requires all four explicit flags: `--include-rls-draft --include-retention-draft --include-retention-hardening-draft --include-retention-stamping-draft`.
 
