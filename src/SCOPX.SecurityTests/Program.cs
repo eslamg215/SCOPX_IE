@@ -328,6 +328,9 @@ static async Task RunAuthHttpIntegrationTestsAsync()
                 "CORS returns the exact configured origin");
             Require(!response.Headers.Contains("Access-Control-Allow-Credentials"),
                 "CORS does not enable credentialed cross-origin requests");
+            Require(response.Headers.TryGetValues("Access-Control-Expose-Headers", out var exposed)
+                && exposed.Single().Contains("X-Correlation-ID", StringComparison.OrdinalIgnoreCase),
+                "CORS exposes only the correlation identifier needed by browser clients");
         }
         using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
         {
@@ -349,6 +352,13 @@ static async Task RunAuthHttpIntegrationTestsAsync()
                 "CORS preflight echoes only the configured origin");
             Require(!response.Headers.Contains("Access-Control-Allow-Credentials"),
                 "CORS preflight does not permit credentialed browser requests");
+            Require(response.Headers.TryGetValues("Access-Control-Allow-Methods", out var methods)
+                && methods.Single().Contains("GET", StringComparison.OrdinalIgnoreCase),
+                "CORS preflight allows the requested safe HTTP method");
+            Require(response.Headers.TryGetValues("Access-Control-Allow-Headers", out var headers)
+                && headers.Single().Contains("authorization", StringComparison.OrdinalIgnoreCase)
+                && headers.Single().Contains("x-hospital-id", StringComparison.OrdinalIgnoreCase),
+                "CORS preflight permits only the configured authentication and tenant headers");
         }
 
         using (var malformed = await client.PostAsync("/api/v1/auth/login",
