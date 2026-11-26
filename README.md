@@ -184,6 +184,8 @@ GitHub Actions now builds the API and Windows workstation on pushes and pull req
 
 A protected media foundation now validates JPEG/PNG/WebP/MP4/WebM file signatures, applies a 50 MiB upload cap, requires malware scanning through a registered ClamAV INSTREAM adapter, encrypts stored content with AES-256-GCM, and verifies the plaintext hash after authenticated decryption. Missing scanner configuration, daemon errors, malformed responses, and timeouts fail closed. The ClamAV protocol is unencrypted and must be restricted to a private network. The API host still does **not** map media routes.
 
+The SCX2 AES-GCM envelope carries a key ID and supports keyring-based decryption during rotation; automated bulk re-encryption is still outstanding. ClamAV uses an unencrypted TCP protocol and must be isolated on a private network.
+
 See `docs/STEP-41-MEDIA-PROTECTION-FOUNDATION.md` for the encryption envelope, key configuration, and remaining requirements. Production malware scanning, managed key rotation, encrypted backups, retention/deletion controls, streaming video storage, integration tests, and independent security review remain outstanding.
 
 **Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
