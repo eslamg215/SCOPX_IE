@@ -64,6 +64,47 @@ BEGIN
         END IF;
     END LOOP;
 
+
+    -- Migration 014 is optional outside the CI opt-in path. Validate its narrow
+    -- request mutation columns and trigger-only append-only event access.
+    IF to_regclass('public.media_deletion_requests') IS NOT NULL THEN
+        FOREACH tbl IN ARRAY ARRAY['media_deletion_requests','media_deletion_request_events'] LOOP
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_class c
+                WHERE c.oid = to_regclass(format('public.%I', tbl))
+                  AND c.relrowsecurity AND c.relforcerowsecurity
+            ) THEN
+                RAISE EXCEPTION 'RLS and FORCE RLS must both be enabled on optional public.%', tbl;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM pg_class c
+                WHERE c.oid = to_regclass(format('public.%I', tbl))
+                  AND pg_get_userbyid(c.relowner) = runtime_role::text
+            ) THEN
+                RAISE EXCEPTION 'Runtime role must not own optional public.%', tbl;
+            END IF;
+        END LOOP;
+
+        IF NOT has_table_privilege(runtime_role, 'public.media_deletion_requests', 'SELECT')
+           OR NOT has_table_privilege(runtime_role, 'public.media_deletion_requests', 'INSERT')
+           OR has_table_privilege(runtime_role, 'public.media_deletion_requests', 'UPDATE')
+           OR has_table_privilege(runtime_role, 'public.media_deletion_requests', 'DELETE')
+           OR has_table_privilege(runtime_role, 'public.media_deletion_requests', 'TRUNCATE')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'status', 'UPDATE')
+           OR NOT has_column_privilege(runtime_role, 'public.media_deletion_requests', 'decision_reason', 'UPDATE')
+           OR has_column_privilege(runtime_role, 'public.media_deletion_requests', 'reason', 'UPDATE') THEN
+            RAISE EXCEPTION 'Runtime role media_deletion_requests grants are not least-privilege';
+        END IF;
+
+        IF NOT has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'SELECT')
+           OR has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'INSERT')
+           OR has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'UPDATE')
+           OR has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'DELETE')
+           OR has_table_privilege(runtime_role, 'public.media_deletion_request_events', 'TRUNCATE') THEN
+            RAISE EXCEPTION 'Runtime role must have SELECT-only access to media deletion request events';
+        END IF;
+    END IF;
+
     IF has_table_privilege(runtime_role, 'public.users', 'SELECT')
        OR has_table_privilege(runtime_role, 'public.user_sessions', 'SELECT') THEN
         RAISE EXCEPTION 'Runtime role has broader table-level identity read access than intended';
