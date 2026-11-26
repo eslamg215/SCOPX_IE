@@ -217,3 +217,10 @@ Migration 012 enforces one open deletion request per recording and makes legal-h
 ## Step 45 — New-media retention deadline stamping (draft)
 
 Migration 013 stamps a retention deadline on new media only when an explicitly enabled per-hospital policy exists. The deadline is based on `created_at + retention_days`; missing/disabled policies force NULL, caller-supplied deadlines and creation timestamps are ignored in favor of server time, and existing media deadlines are immutable and are not recalculated when policy settings change. Migration 013 is excluded by default and requires `--include-rls-draft --include-retention-draft --include-retention-hardening-draft --include-retention-stamping-draft`. CI tests enabled, disabled, and missing policies. No worker or physical deletion is enabled. Synthetic data only.
+
+
+### Step 46 — runtime retention stamping verification (draft)
+
+- The PostgreSQL smoke test now inserts a synthetic media asset as the actual `scopx_runtime` role under tenant RLS and proves that the enabled hospital policy stamps the deadline, ignores caller input, and prevents later mutation.
+- See [Step 46 verification notes](docs/STEP-46-RUNTIME-RETENTION-STAMPING-VERIFICATION.md).
+- This remains disposable-CI validation only. No deletion worker, scheduler, physical deletion, tombstoning, or media API activation is enabled.
