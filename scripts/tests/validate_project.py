@@ -179,6 +179,9 @@ if signing_service.exists():
     check('Reports:SigningPrivateKeyPem' in ssvc and 'Reports:SigningKeyId' in ssvc, 'report signing requires an externally configured private key and key identifier')
     check('TimeSpan.FromMinutes(5)' in ssvc and 'CanonicalizationVersion' in ssvc, 'report signature binds canonical version and recent re-authentication metadata')
 check('AddSingleton<ReportSigningService>' in program, 'report signing service is registered but requires external key configuration')
+check('ReportSignRequest' in (API/'Reports/ReportEndpoints.cs').read_text(encoding='utf-8') and 'passwordHashes.Verify' in (API/'Reports/ReportEndpoints.cs').read_text(encoding='utf-8'), 'disabled report signing route requires current-password re-authentication')
+check('reports.SignAsync' in (API/'Reports/ReportEndpoints.cs').read_text(encoding='utf-8') and '"report.signed"' in report_repository, 'report signature persistence and audit event share one repository transaction')
+check('MapReportEndpoints' not in program, 'report signing route remains unexposed by the API host')
 security_tests=ROOT/'src/SCOPX.SecurityTests/Program.cs'
 check(security_tests.exists() and (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').exists(), 'report-signing cryptography test project exists')
 if security_tests.exists():
