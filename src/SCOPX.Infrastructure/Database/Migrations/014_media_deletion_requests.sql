@@ -64,7 +64,7 @@ CREATE INDEX media_deletion_request_events_request_idx
     ON public.media_deletion_request_events(hospital_id, request_id, occurred_at, id);
 
 -- Enforce requester identity, active tenant membership, immutable request facts,
--- four-eyes approval, required decision reasons, and legal state transitions.
+-- requester/reviewer separation, required decision reasons, and legal state transitions.
 CREATE OR REPLACE FUNCTION public.scopx_guard_media_deletion_request()
 RETURNS trigger
 LANGUAGE plpgsql
