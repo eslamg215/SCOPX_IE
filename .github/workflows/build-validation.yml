@@ -137,3 +137,17 @@ jobs:
 
       - name: Test cross-tenant isolation, role scope, and audit immutability
         run: psql --no-psqlrc --set ON_ERROR_STOP=1 --file scripts/tests/tenant-rls-ci-smoke.sql
+
+      - name: Install .NET 10 SDK for PostgreSQL-backed API integration tests
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build API security integration test host
+        run: dotnet build src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release
+
+      - name: Run HTTP integration tests with the least-privilege PostgreSQL role
+        env:
+          SCOPX_TEST_DB_RUNTIME_CONNECTION: "Host=localhost;Port=5432;Database=scopx_dev;Username=scopx_runtime;Password=ci-only-password"
+          SCOPX_TEST_DB_OWNER_CONNECTION: "Host=localhost;Port=5432;Database=scopx_dev;Username=postgres;Password=ci-only-password"
+        run: dotnet run --project src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release --no-build
