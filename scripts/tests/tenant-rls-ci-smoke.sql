@@ -302,6 +302,18 @@ BEGIN
       RAISE EXCEPTION 'approval unexpectedly enqueued deletion';
     END IF;
     BEGIN
+      INSERT INTO public.media_deletion_request_events
+        (hospital_id, request_id, media_id, to_status, actor_user_id, reason)
+      VALUES
+        ('00000000-0000-0000-0000-0000000000b1',
+         '30000000-0000-0000-0000-000000000001',
+         '00000000-0000-0000-0000-0000000000f1',
+         'approved', '00000000-0000-0000-0000-0000000000a1',
+         'forged event attempt');
+      RAISE EXCEPTION 'runtime role unexpectedly inserted event history directly';
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+    BEGIN
       UPDATE public.media_deletion_request_events
          SET reason = 'tampered event'
        WHERE request_id = '30000000-0000-0000-0000-000000000001';
