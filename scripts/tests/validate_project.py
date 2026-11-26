@@ -168,6 +168,7 @@ if report_versions_migration.exists():
     check('SCOPX-REPORT-TEXT-V1' in rvm and 'LEGACY-RAW-UTF8-V1' in rvm, 'report digest canonicalization versions are explicit')
 report_repository=(infra/'Reports/NpgsqlReportRepository.cs').read_text(encoding='utf-8')
 check('report_body_sha256' in report_repository and 'report_version=report_version+1' in report_repository and 'HashBody' in report_repository, 'report draft edits hash and increment each immutable version')
+check('ExpectedVersion' in report_repository or 'expectedVersion' in (API/'Reports/ReportEndpoints.cs').read_text(encoding='utf-8'), 'report draft updates require an expected version to prevent lost updates')
 report_smoke=(ROOT/'scripts/tests/tenant-rls-ci-smoke.sql').read_text(encoding='utf-8')
 check('report-version RLS failed' in report_smoke and 'signed report mutation was not rejected' in report_smoke, 'PostgreSQL smoke test covers report tenant isolation and signed immutability')
 
