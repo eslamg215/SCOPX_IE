@@ -235,3 +235,13 @@ Migration 013 stamps a retention deadline on new media only when an explicitly e
 - See `docs/STEP-64-SESSION-LIFECYCLE-SECURITY-REVIEW.md`.
 
 Synthetic data only. This is a security review, not clinical validation or production readiness.
+
+
+## Step 65 — Local database deployment configuration hardening
+
+- Docker Compose now requires an explicit `POSTGRES_PASSWORD`; the weak `local_only_change_me` fallback has been removed.
+- The PostgreSQL port remains bound to loopback only (`127.0.0.1:5432`). Existing local `.env` files and database volumes are not changed by this repository edit.
+- Offline structural validation now guards against reintroducing the weak fallback.
+- No database was started, no migration was applied, and no password was read, generated, or rotated.
+- See `docs/STEP-65-LOCAL-DB-DEPLOYMENT-HARDENING.md`.
+
