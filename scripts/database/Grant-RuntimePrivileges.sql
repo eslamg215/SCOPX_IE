@@ -108,13 +108,16 @@ DO $$
 BEGIN
     IF to_regclass('public.media_deletion_requests') IS NOT NULL THEN
         EXECUTE 'REVOKE ALL ON TABLE public.media_deletion_requests FROM PUBLIC';
-        EXECUTE 'GRANT SELECT, INSERT ON TABLE public.media_deletion_requests TO scopx_runtime';
+        EXECUTE 'REVOKE ALL ON TABLE public.media_deletion_requests FROM scopx_runtime';
+        EXECUTE 'GRANT SELECT (id, hospital_id, media_id, status, reason, requested_by_user_id, requested_at, decided_at) ON TABLE public.media_deletion_requests TO scopx_runtime';
+        EXECUTE 'GRANT INSERT ON TABLE public.media_deletion_requests TO scopx_runtime';
         EXECUTE 'GRANT UPDATE (status, decision_reason) ON TABLE public.media_deletion_requests TO scopx_runtime';
         EXECUTE 'REVOKE DELETE, TRUNCATE ON TABLE public.media_deletion_requests FROM scopx_runtime';
     END IF;
     IF to_regclass('public.media_deletion_request_events') IS NOT NULL THEN
         EXECUTE 'REVOKE ALL ON TABLE public.media_deletion_request_events FROM PUBLIC';
-        EXECUTE 'GRANT SELECT ON TABLE public.media_deletion_request_events TO scopx_runtime';
+        EXECUTE 'REVOKE ALL ON TABLE public.media_deletion_request_events FROM scopx_runtime';
+        EXECUTE 'GRANT SELECT (hospital_id, request_id, from_status, to_status, occurred_at) ON TABLE public.media_deletion_request_events TO scopx_runtime';
         EXECUTE 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE public.media_deletion_request_events FROM scopx_runtime';
     END IF;
 END $$;
