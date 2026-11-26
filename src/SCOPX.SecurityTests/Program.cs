@@ -566,6 +566,50 @@ static async Task RunPostgresHttpIntegrationTestsAsync()
                 using var response = await client.SendAsync(request);
                 Check(response, HttpStatusCode.Forbidden, "Npgsql hospital-context repository denies another user's tenant");
             }
+            using var loginB = await client.PostAsJsonAsync("/api/v1/auth/login",
+                new { email = "pg-auth-b@example.invalid", password });
+            Check(loginB, HttpStatusCode.OK, "PostgreSQL runtime role authenticates a second synthetic tenant user");
+            using var jsonB = JsonDocument.Parse(await loginB.Content.ReadAsStringAsync());
+            var tokenB = jsonB.RootElement.GetProperty("access_token").GetString()
+                ?? throw new InvalidOperationException("Second PostgreSQL-backed login did not return a token.");
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/mine"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.OK, "Second user's membership list is available to that user");
+                var body = await response.Content.ReadAsStringAsync();
+                Require(body.Contains(hospitalB.ToString(), StringComparison.OrdinalIgnoreCase)
+                    && !body.Contains(hospitalA.ToString(), StringComparison.OrdinalIgnoreCase),
+                    "PostgreSQL RLS isolates hospital B from hospital A for the second user");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/context"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+                request.Headers.Add("X-Hospital-ID", hospitalA.ToString());
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.Forbidden, "Second user cannot select the first user's hospital");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/logout"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.OK, "Second user's PostgreSQL session can be revoked");
+            }
+
+            for (var attempt = 1; attempt <= LoginLockoutPolicy.MaxFailedAttemptsBeforeLockout; attempt++)
+            {
+                using var badLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
+                    new { email = "pg-auth-a@example.invalid", password = "WrongPostgresPassword2026" });
+                Check(badLogin, HttpStatusCode.Unauthorized, $"PostgreSQL-backed failed password attempt {attempt} is rejected");
+            }
+            var persistedUser = await new NpgsqlUserRepository(runtimeConnection)
+                .FindByNormalizedEmailAsync("PG-AUTH-A@EXAMPLE.INVALID");
+            Require(persistedUser?.FailedLoginCount == LoginLockoutPolicy.MaxFailedAttemptsBeforeLockout
+                && persistedUser.LockoutUntil > DateTimeOffset.UtcNow,
+                "PostgreSQL repository persists the failed-login counter and active lockout deadline");
+            using (var lockedAfterFailures = await client.PostAsJsonAsync("/api/v1/auth/login",
+                new { email = "pg-auth-a@example.invalid", password }))
+                Check(lockedAfterFailures, HttpStatusCode.Unauthorized, "PostgreSQL-backed login enforces the persisted lockout after repeated failures");
             using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", expiredToken);
