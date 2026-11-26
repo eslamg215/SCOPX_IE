@@ -498,4 +498,3 @@ sealed class FakeHospitalMembershipRepository(Guid ownerId, IEnumerable<Hospital
             : null);
 }
 
-Console.WriteLine("All SCOPX security tests passed.");
