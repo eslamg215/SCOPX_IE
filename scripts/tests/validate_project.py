@@ -187,6 +187,7 @@ check(retention_stamping.exists(), 'Step 45 new-media retention deadline stampin
 if retention_stamping.exists():
     rsm=retention_stamping.read_text(encoding='utf-8')
     check('BEFORE INSERT ON public.media_assets' in rsm and 'NEW.created_at + make_interval(days => policy_days)' in rsm, 'new media retention deadline derives from creation time and explicit policy days')
+    check('NEW.created_at := transaction_timestamp()' in rsm, 'server controls media creation time so clients cannot backdate retention')
     check('IF NOT FOUND OR policy_enabled IS DISTINCT FROM true' in rsm and 'NEW.retention_until := NULL' in rsm, 'missing or disabled retention policies leave new media without a deletion deadline')
     check('BEFORE UPDATE OF retention_until, created_at, hospital_id' in rsm and 'media retention stamp and creation tenant are immutable' in rsm, 'retention stamps and source creation facts cannot be changed later')
     check('No deletion worker' in rsm or 'No worker' in rsm, 'retention stamping does not activate a deletion worker')
