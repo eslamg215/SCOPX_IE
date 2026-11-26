@@ -691,6 +691,29 @@ static async Task RunPostgresHttpIntegrationTestsAsync()
                 Check(response, HttpStatusCode.OK, "Second user's PostgreSQL session can be revoked");
             }
 
+            await using (var ownerUpdate = new NpgsqlConnection(ownerConnection))
+            {
+                await ownerUpdate.OpenAsync();
+                await using var suspend = new NpgsqlCommand(
+                    "UPDATE public.hospital_memberships SET status='suspended' WHERE id=@membership", ownerUpdate);
+                suspend.Parameters.AddWithValue("membership", membershipA);
+                Require(await suspend.ExecuteNonQueryAsync() == 1,
+                    "Synthetic hospital membership can be suspended by the test fixture owner");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/hospitals/context"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+                request.Headers.Add("X-Hospital-ID", hospitalA.ToString());
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.Forbidden, "PostgreSQL-backed API immediately denies a suspended membership");
+            }
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+                using var response = await client.SendAsync(request);
+                Check(response, HttpStatusCode.OK, "Suspending a hospital membership does not revoke the user's independent login session");
+            }
+
             for (var attempt = 1; attempt <= LoginLockoutPolicy.MaxFailedAttemptsBeforeLockout; attempt++)
             {
                 using var badLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
