@@ -153,7 +153,13 @@ if protection.exists():
     check('new AesGcm(key, TagSize)' in mp and 'RandomNumberGenerator.GetBytes(NonceSize)' in mp, 'media encryption uses AES-GCM with a fresh nonce')
     check('MediaStorage:EncryptionKeyBase64' in mp and 'key.Length != 32' in mp, 'media encryption requires a configured 256-bit key')
     check('AssociatedData' in mp and 'CryptographicOperations.ZeroMemory(key)' in mp, 'media encryption binds tenant and asset identity and clears key buffers')
-    check('UnavailableMediaMalwareScanner' in mp and 'No malware scanning engine is configured' in mp, 'default malware scanner rejects uploads until a real scanner is configured')
+    scanner_file=API/'Media/ClamAvMediaMalwareScanner.cs'
+check(scanner_file.exists() and 'ClamAvMediaMalwareScanner' in program, 'ClamAV malware scanner adapter is registered')
+if scanner_file.exists():
+    scanner_source=scanner_file.read_text(encoding='utf-8')
+    check('zINSTREAM' in scanner_source and ' FOUND' in scanner_source and ' OK' in scanner_source, 'ClamAV adapter uses INSTREAM and distinguishes clean from infected results')
+    check('TimeoutSeconds' in scanner_source and 'MaximumBytes' in scanner_source, 'ClamAV adapter enforces upload limits and timeout')
+check('UnavailableMediaMalwareScanner' in mp and 'No malware scanning engine is configured' in mp, 'fallback malware scanner implementation fails closed')
 check('MapMediaEndpoints' not in program and 'IMediaRepository' not in program, 'media routes remain disabled pending scanner, retention, and operational verification')
 
 
@@ -187,6 +193,7 @@ check(security_tests.exists() and (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityT
 if security_tests.exists():
     st=security_tests.read_text(encoding='utf-8')
     check('tampered signature bytes are rejected' in st and 'changed document digest invalidates the signature' in st, 'report-signing tests cover signature and payload tampering')
+    check('ClamAV INSTREAM clean response is accepted' in st and 'ClamAV INSTREAM infected response is rejected' in st, 'media security tests cover ClamAV clean and infected responses')
     check('no private key is configured' in st and 'smaller than 2048 bits' in st, 'report-signing tests cover fail-closed key configuration and minimum strength')
 
 report_smoke=(ROOT/'scripts/tests/tenant-rls-ci-smoke.sql').read_text(encoding='utf-8')
