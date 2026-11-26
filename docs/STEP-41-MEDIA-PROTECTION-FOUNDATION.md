@@ -18,7 +18,7 @@
 2. The download endpoint now uses a separate care-team role policy: hospital administrators, doctors, nurses, and endoscopy technicians may download; auditors may inspect metadata but cannot download recordings. Every request still requires an active membership in the selected hospital.
 3. Successful integrity-verified downloads append a transactional `media.downloaded` audit event. A request/read-attempt event is recorded separately, so failed transfers and successful verification are distinguishable.
 4. Managed KMS/HSM integration, key rotation automation, bulk re-encryption, encrypted backups, filesystem ACL hardening, and recovery/restore drills.
-5. Retention schedules, legal holds, two-person deletion approval where required, deletion queue, secure object deletion, and auditable tombstones. No automated deletion is currently enabled.
+5. Migration 011 now adds a draft tenant-scoped retention policy, legal-hold records, a guarded deletion queue, and append-only deletion events. It deliberately defines no default retention period. No deletion worker, two-person approval workflow, object deletion, or automated tombstoning is enabled; operational integration and legal review remain outstanding.
 6. Streaming/chunked authenticated encryption for large recordings. The current bounded 50 MiB upload/download path buffers content in memory and is not a production video pipeline.
 7. End-to-end integration tests against a real PostgreSQL + object-storage + malware-scanner deployment, including failed disk writes, interrupted transfers, and restore verification.
 8. Independent security review and clinical validation.
@@ -37,4 +37,4 @@ When protected key management is available, provide the key through protected de
 
 Set `MediaStorage__ActiveKeyId` to a non-secret key ID and `MediaStorage__Keys__<key-id>` to the generated Base64 value in protected configuration. Do not commit the value, paste it into chat, or reuse it between environments. Do not configure a real clinical environment using this development foundation.
 
-**Status: protected-media foundation and care-team download policy implemented; API remains disabled. Retention/deletion and production storage operations are not implemented. Synthetic data only.**
+**Status: protected-media foundation and care-team download policy implemented; draft retention/deletion schema is present but not enabled locally. API remains disabled. Deletion worker, physical object deletion, and production storage operations are not implemented. Synthetic data only.**
