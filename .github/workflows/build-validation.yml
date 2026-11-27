@@ -40,6 +40,17 @@ jobs:
       - name: Build Windows workstation
         run: dotnet build src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release
 
+      - name: Publish unsigned Windows x64 preview
+        run: dotnet publish src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false --output artifacts/SCOPX.Workstation-win-x64
+
+      - name: Upload Windows workstation preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCOPX.Workstation-win-x64-preview
+          path: artifacts/SCOPX.Workstation-win-x64/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Install Python for structural checks
         uses: actions/setup-python@v5
         with:
