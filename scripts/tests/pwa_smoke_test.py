@@ -4,6 +4,8 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from threading import Thread
 from urllib.request import urlopen
+import json
+import tempfile
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[2]/'src'/'SCOPX.Web'
 class Handler(SimpleHTTPRequestHandler):
@@ -46,6 +48,29 @@ try:
             page.locator('[data-complete]').first.click()
             page.locator('[data-view="reports"]').first.click()
             check(page.get_by_text('Demo report — Smoke Test Procedure').count()>0,'procedure completion creates report preview')
+            page.locator('[data-view="media"]').first.click()
+            page.locator('[data-open-media]').click()
+            page.locator('#mediaForm input[name="file"]').set_input_files({
+                'name':'synthetic-smoke.png',
+                'mimeType':'image/png',
+                'buffer':b'\\x89PNG\\r\\n\\x1a\\nSMOKE-ONLY'
+            })
+            page.locator('#mediaForm input[name="caption"]').fill('Synthetic smoke image')
+            page.locator('#mediaForm button[type="submit"]').click()
+            check(page.locator('.media-card').count()==1,'synthetic media upload and local gallery rendering work')
+            with page.expect_download() as download_info:
+                page.locator('#exportData').click()
+            download=download_info.value
+            with tempfile.TemporaryDirectory() as temp_dir:
+                backup_path=Path(temp_dir)/download.suggested_filename
+                download.save_as(str(backup_path))
+                backup=json.loads(backup_path.read_text(encoding='utf-8'))
+                check(len(backup['patients'])>=3 and len(backup['media'])==1,'JSON export contains synthetic records and media')
+            page.reload(wait_until='networkidle')
+            page.locator('[data-view="media"]').first.click()
+            check(page.locator('.media-card').count()==1,'synthetic media persists after browser reload')
+            page.locator('[data-view="patients"]').first.click()
+            check(page.get_by_text('Demo Smoke Patient').count()>0,'synthetic patient persists after browser reload')
             check(not errors,'no uncaught browser JS errors')
             page.set_viewport_size({'width':390,'height':844})
             page.reload(wait_until='networkidle')
