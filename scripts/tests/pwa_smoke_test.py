@@ -69,6 +69,7 @@ try:
                 download.save_as(str(backup_path))
                 backup=json.loads(backup_path.read_text(encoding='utf-8'))
                 check(len(backup['patients'])>=3 and len(backup['media'])==1,'JSON export contains synthetic records and media')
+                check(backup_path.stat().st_size<=10*1024*1024,'exported backup respects the 10 MiB import limit')
             page.reload(wait_until='networkidle')
             page.locator('[data-view="media"]').first.click()
             check(page.locator('.media-card').count()==1,'synthetic media persists after browser reload')
