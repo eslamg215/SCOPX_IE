@@ -5,6 +5,7 @@ import re, sys
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS = ROOT / 'src/SCOPX.Infrastructure/Database/Migrations'
 API = ROOT / 'src/SCOPX.Api'
+WORKSTATION = ROOT / 'src/SCOPX.Workstation'
 failures=[]
 def check(condition, message):
     print(('PASS: ' if condition else 'FAIL: ') + message)
@@ -38,6 +39,11 @@ health_end=program.index('if (!string.IsNullOrWhiteSpace(databaseConnection))', 
 health_routes=program[health_start:health_end]
 check('RequireRateLimiting' not in health_routes, 'liveness and readiness probes are not throttled by API rate limits')
 check('catch (OperationCanceledException) when (ct.IsCancellationRequested)' in program, 'database readiness probe preserves host/request cancellation')
+endpoint_policy=(WORKSTATION/'ApiEndpointPolicy.cs').read_text(encoding='utf-8')
+workstation_form=(WORKSTATION/'WorkstationForm.cs').read_text(encoding='utf-8')
+check('Uri.UriSchemeHttps' in endpoint_policy and 'Uri.UriSchemeHttp' in endpoint_policy and 'uri.IsLoopback' in endpoint_policy, 'workstation requires HTTPS except for loopback development')
+check('uri.UserInfo' in endpoint_policy and 'uri.Query' in endpoint_policy and 'uri.Fragment' in endpoint_policy, 'workstation rejects credential-bearing and decorated API base URLs')
+check('ApiEndpointPolicy.IsAllowedBaseUri(baseUri)' in workstation_form, 'workstation applies the secure API endpoint policy before connecting')
 auth_endpoints=(API/'Authentication/AuthEndpoints.cs').read_text(encoding='utf-8')
 check('RequestSizeLimitAttribute(16 * 1024)' in auth_endpoints, 'login endpoint enforces a 16 KiB request-body limit')
 security_tests=(ROOT/'src/SCOPX.SecurityTests/Program.cs').read_text(encoding='utf-8')
