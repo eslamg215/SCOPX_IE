@@ -469,3 +469,7 @@ Added an explicit reset control that asks for confirmation before restoring the 
 
 ## Step 87 — Keyboard and navigation accessibility
 Added a visible-on-focus skip link, keyboard focus indicators, active navigation semantics, and an expanded state for the mobile menu. Browser acceptance tests exercise the skip link using the keyboard. See [Step 87 report](docs/STEP-87-WEB-ACCESSIBILITY.md).
+
+
+## Step 88 — PWA offline shell update
+Bumped the service-worker cache version, enabled safe activation of the updated app shell, and claimed controlled clients after activation. Browser acceptance tests now reload the demo while offline after the cache is populated. See [Step 88 report](docs/STEP-88-PWA-OFFLINE-UPDATE.md).
