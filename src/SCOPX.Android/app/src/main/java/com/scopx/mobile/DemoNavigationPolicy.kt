@@ -12,10 +12,13 @@ object DemoNavigationPolicy {
         return try {
             val uri = URI(value)
             val path = uri.rawPath ?: return false
+            val decodedPath = uri.path ?: return false
             uri.isAbsolute
                 && uri.scheme.equals("https", ignoreCase = true)
-                && uri.host.equals(ASSET_HOST, ignoreCase = true)
+                && uri.host?.equals(ASSET_HOST, ignoreCase = true) == true
                 && uri.port == -1
+                && path == decodedPath
+                && !path.contains('\\\\')
                 && uri.rawUserInfo == null
                 && uri.rawQuery == null
                 && uri.rawFragment == null
