@@ -434,6 +434,7 @@ if workflow_file.exists():
     wf_text=workflow_file.read_text(encoding='utf-8')
     check('Build Android debug APK' in wf_text and 'assembleDebug' in wf_text, 'CI builds the Android debug APK')
     check('SCOPX.Android-debug-preview' in wf_text and 'app-debug.apk' in wf_text, 'CI uploads the Android APK preview artifact')
+    check('packages: platform-tools' in wf_text and 'packages: tools platform-tools' not in wf_text, 'Android SDK setup avoids the removed legacy tools package')
 
 # Step 78 Windows workstation preview packaging checks
 workflow_file=ROOT/'.github/workflows/build-validation.yml'
