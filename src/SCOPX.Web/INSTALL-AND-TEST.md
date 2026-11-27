@@ -25,3 +25,7 @@ See `../SCOPX.Android/README.md`. APK building requires Android Studio, SDK and 
 
 ## Verification
 Run `python3 ../scripts/tests/validate_project.py` and `python3 ../scripts/tests/pwa_smoke_test.py`. The HTTP smoke script checks asset delivery; browser interaction testing may be unavailable depending on the environment.
+
+
+## Windows workstation preview
+The Windows workstation preview includes a button named **Open Offline Demo**. It opens the bundled `SCOPX.Web/index.html` in the default browser. The web files are copied beside the workstation executable under `DemoWeb/` during build. This is the full offline synthetic-data demo; the WinForms Patients/Procedures/Reports/Media cards remain placeholders.
