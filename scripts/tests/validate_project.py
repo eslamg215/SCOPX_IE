@@ -433,6 +433,21 @@ if (android_root/'app/build.gradle.kts').exists():
     ag=(android_root/'app/build.gradle.kts').read_text(encoding='utf-8')
     check('com.android.application' in ag and 'compileSdk = 35' in ag and 'minSdk = 26' in ag, 'Android app targets the configured SDK and minimum API')
     check('JavaVersion.VERSION_17' in ag and 'jvmTarget = "17"' in ag, 'Android Java and Kotlin compile targets both use JVM 17')
+api_policy=android_root/'app/src/main/java/com/scopx/mobile/ApiEndpointPolicy.kt'
+api_policy_test=android_root/'app/src/test/java/com/scopx/mobile/ApiEndpointPolicyTest.kt'
+main_activity=(android_root/'app/src/main/java/com/scopx/mobile/MainActivity.kt')
+check(api_policy.exists() and api_policy_test.exists(), 'Android API endpoint policy and unit tests exist')
+if api_policy.exists():
+    ap=api_policy.read_text(encoding='utf-8')
+    check('https' in ap and 'rawUserInfo' in ap and 'rawQuery' in ap and 'rawFragment' in ap, 'Android API endpoint policy enforces HTTPS and rejects embedded credentials/query/fragment')
+if main_activity.exists():
+    ma=main_activity.read_text(encoding='utf-8')
+    check('ApiEndpointPolicy.isAllowedBaseUrl(base)' in ma, 'Android sign-in validates the API base URL before connecting')
+if (android_root/'app/build.gradle.kts').exists():
+    check('junit:junit:4.13.2' in ag, 'Android endpoint policy uses JUnit 4 regression tests')
+if workflow_file.exists():
+    check('testDebugUnitTest' in wf_text, 'CI runs Android endpoint policy unit tests before packaging the APK')
+
 if workflow_file.exists():
     wf_text=workflow_file.read_text(encoding='utf-8')
     check('Build Android debug APK' in wf_text and 'assembleDebug' in wf_text, 'CI builds the Android debug APK')
