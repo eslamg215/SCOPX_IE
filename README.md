@@ -292,3 +292,12 @@ Synthetic data only. Development scaffold; not production-ready or clinically va
 - See [Step 69 media and capture security review](docs/STEP-69-MEDICAL-MEDIA-AND-CAPTURE-SECURITY-REVIEW.md).
 
 Synthetic data and protocol fixtures only. No real capture device or clinical recording was used. Not clinically validated or production-ready.
+
+
+## Step 70 — Non-clinical recording lifecycle policy
+
+- Added a pure lifecycle transition policy: Idle → Preparing → Recording → Stopping → Finalized, with explicit Error and reset paths.
+- Invalid transitions are rejected; regression tests cover allowed and forbidden transitions.
+- The policy is not a capture driver or recording engine and does not create or finalize media files.
+- Media routes remain disabled; no hardware or clinical recording was used.
+- See [Step 70 recording lifecycle state machine](docs/STEP-70-RECORDING-LIFECYCLE-STATE-MACHINE.md).
