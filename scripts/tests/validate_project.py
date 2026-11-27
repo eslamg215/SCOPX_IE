@@ -206,7 +206,7 @@ if device_contracts.exists():
     dcs=device_contracts.read_text(encoding='utf-8')
     check('IDeviceCaptureAdapter' in dcs and 'SimulatorCaptureAdapter' in dcs, 'device integration is isolated behind a capture adapter contract')
     check('no image/video is captured' in dcs and 'Simulation only' in dcs, 'simulator cannot be mistaken for a real video capture source')
-    check('CaptureTransport.NetworkStream' in dcs and 'CaptureTransport.HdmiCaptureCard' in dcs, 'network and HDMI transports are declared as future adapter types only')
+    check('NetworkStream' in dcs and 'HdmiCaptureCard' in dcs, 'network and HDMI transports are declared as future adapter types only')
 retention_migration=MIGRATIONS/'011_media_retention_lifecycle.sql'
 check(retention_migration.exists(), 'Step 43 media retention lifecycle draft migration exists')
 if retention_migration.exists():
