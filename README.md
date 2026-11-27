@@ -349,3 +349,12 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - Added deterministic tests for duplicate starts, fault-state refusal, status timestamp/state/message bounds, and proof that blocked requests never reach the provider.
 - This is a software gate; hardware fault recovery and reconnect behavior remain unimplemented.
 - See [Step 75 capture readiness and fault-state gate](docs/STEP-75-CAPTURE-READINESS-FAULT-GATE.md).
+
+
+## Step 76 — Capture stop and cleanup-state policy
+
+- The validated adapter now treats Stop in Ready as an idempotent no-op.
+- Stop is forwarded only when the provider reports Capturing or Faulted; Faulted permits a cleanup attempt, while Disconnected is rejected.
+- Added deterministic simulator/fault-provider tests for normal stop, repeated stop, fault cleanup, and refusal to stop a disconnected provider.
+- Real hardware stop/recovery semantics still require vendor-specific validation.
+- See [Step 76 capture stop and cleanup policy](docs/STEP-76-CAPTURE-STOP-CLEANUP-POLICY.md).
