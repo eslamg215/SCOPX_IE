@@ -331,3 +331,12 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - Added regression coverage for accepted boundary profiles and invalid dimensions, frame rates, and pixel-format values.
 - These are request bounds, not claims that any physical device supports those modes.
 - See [Step 73 capture options validation](docs/STEP-73-CAPTURE-OPTIONS-VALIDATION.md).
+
+
+## Step 74 — Validated capture-adapter boundary
+
+- Added a decorator that validates adapter descriptors at construction, validates status metadata on read, and validates start options before forwarding.
+- The decorator forwards cancellation, rejects calls after disposal, and disposes its underlying adapter once.
+- Added regression coverage using only the no-video simulator for accepted start/stop and blocked invalid options.
+- This boundary is not yet wired to physical device discovery or a real capture driver.
+- See [Step 74 validated capture adapter](docs/STEP-74-VALIDATED-CAPTURE-ADAPTER.md).
