@@ -53,9 +53,17 @@ try:
             page.locator('[data-view="media"]').first.click()
             page.locator('[data-open-media]').click()
             page.locator('#mediaForm input[name="file"]').set_input_files({
+                'name':'fake.svg',
+                'mimeType':'image/svg+xml',
+                'buffer':b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+            })
+            page.once('dialog',lambda dialog:dialog.accept())
+            page.locator('#mediaForm button[type="submit"]').click()
+            check(page.locator('.media-card').count()==0,'SVG upload is rejected by binary signature validation')
+            page.locator('#mediaForm input[name="file"]').set_input_files({
                 'name':'synthetic-smoke.png',
                 'mimeType':'image/png',
-                'buffer':b'\\x89PNG\\r\\n\\x1a\\nSMOKE-ONLY'
+                'buffer':bytes.fromhex('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000b49444154789c636000020000050001a5f645400000000049454e44ae426082')
             })
             page.locator('#mediaForm input[name="caption"]').fill('Synthetic smoke image')
             page.locator('#mediaForm button[type="submit"]').click()
