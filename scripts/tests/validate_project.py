@@ -424,6 +424,17 @@ if security_setup.exists():
 preflight=(ROOT/'scripts/windows/Preflight.ps1').read_text(encoding='utf-8')
 check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in preflight, 'Windows preflight checks migration runner dependencies')
 
+# Step 79 Android debug APK preview checks
+android_root=ROOT/'src/SCOPX.Android'
+check((android_root/'settings.gradle.kts').exists() and (android_root/'app/build.gradle.kts').exists(), 'Android Gradle project files exist')
+if (android_root/'app/build.gradle.kts').exists():
+    ag=(android_root/'app/build.gradle.kts').read_text(encoding='utf-8')
+    check('com.android.application' in ag and 'compileSdk = 35' in ag and 'minSdk = 26' in ag, 'Android app targets the configured SDK and minimum API')
+if workflow_file.exists():
+    wf_text=workflow_file.read_text(encoding='utf-8')
+    check('Build Android debug APK' in wf_text and 'assembleDebug' in wf_text, 'CI builds the Android debug APK')
+    check('SCOPX.Android-debug-preview' in wf_text and 'app-debug.apk' in wf_text, 'CI uploads the Android APK preview artifact')
+
 # Step 78 Windows workstation preview packaging checks
 workflow_file=ROOT/'.github/workflows/build-validation.yml'
 check(workflow_file.exists(), 'GitHub Actions build workflow exists')
