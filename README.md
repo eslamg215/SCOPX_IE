@@ -321,3 +321,13 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - Added synthetic regression cases for valid USB/simulator descriptors and malformed, oversized, spoofed, and unknown-enum metadata.
 - No physical devices were enumerated or accessed; no media or clinical data was used.
 - See [Step 72 capture descriptor validation](docs/STEP-72-CAPTURE-DESCRIPTOR-VALIDATION.md).
+
+
+## Step 73 — Capture stream-options validation
+
+- Added a pure allowlist policy for capture dimensions, frame rate, and pixel format before adapter start.
+- Maximum bounds are 7680×4320 at 120 fps; supported format identifiers are MJPEG, YUY2, and NV12.
+- The no-video simulator now uses the same policy and refuses unsupported settings without changing state.
+- Added regression coverage for accepted boundary profiles and invalid dimensions, frame rates, and pixel-format values.
+- These are request bounds, not claims that any physical device supports those modes.
+- See [Step 73 capture options validation](docs/STEP-73-CAPTURE-OPTIONS-VALIDATION.md).
