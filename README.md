@@ -508,3 +508,7 @@ Added a controlled Android/Windows device test checklist for installing and exer
 
 ## Step 95 — Storage quota failure regression
 The browser acceptance suite now forces a Local Storage quota error during a synthetic patient save and verifies that the change is rolled back and the form is not reported as saved. See [Step 95 report](docs/STEP-95-STORAGE-FAILURE-REGRESSION.md).
+
+
+## Step 96 — Android APK asset integrity gate
+The Android CI job now opens the built APK as a ZIP archive and verifies that all six canonical offline demo runtime assets are packaged before uploading the artifact. See [Step 96 report](docs/STEP-96-ANDROID-APK-ASSET-CHECK.md).
