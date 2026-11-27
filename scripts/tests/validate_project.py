@@ -444,6 +444,9 @@ if api_policy.exists():
 if main_activity.exists():
     ma=main_activity.read_text(encoding='utf-8')
     check('ApiEndpointPolicy.isAllowedBaseUrl(base)' in ma, 'Android sign-in validates the API base URL before connecting')
+    check('ApiEndpointPolicy.isAllowedRequestUrl(baseOrigin, endpoint)' in ma, 'Android API requests are constrained to the configured HTTPS origin')
+    check('instanceFollowRedirects = false' in ma and 'finally' in ma and 'conn.disconnect()' in ma, 'Android HTTP client disables redirects and always disconnects')
+    check('HTTP $code' in ma and 'conn.errorStream' not in ma, 'Android HTTP errors do not expose server response bodies')
 if (android_root/'app/build.gradle.kts').exists():
     check('junit:junit:4.13.2' in ag, 'Android endpoint policy uses JUnit 4 regression tests')
 if workflow_file.exists():
