@@ -106,11 +106,11 @@
     }).catch(()=>alert('تعذرت قراءة ملف الصورة.'));
   });
   $('#closeMedia').onclick=$('#cancelMedia').onclick=()=>$('#mediaDialog').close();
-  $('#exportData').onclick=()=>{const payload=JSON.stringify({...data,exportedAt:new Date().toISOString(),exportType:'SCOPX.I.E DEMO ONLY'},null,2);const blob=new Blob([payload],{type:'application/json'});if(blob.size>MAX_DEMO_BACKUP_BYTES){alert('Backup exceeds the 10 MiB limit. Remove some large media items and try again.');return;}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='scopx-demo-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+  $('#exportData').onclick=()=>{const payload=JSON.stringify({...data,schemaVersion:1,exportedAt:new Date().toISOString(),exportType:'SCOPX.I.E DEMO ONLY'},null,2);const blob=new Blob([payload],{type:'application/json'});if(blob.size>MAX_DEMO_BACKUP_BYTES){alert('Backup exceeds the 10 MiB limit. Remove some large media items and try again.');return;}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='scopx-demo-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
   function isValidDemoBackup(value){
     const isObject=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
     const isText=(v,max)=>typeof v==='string'&&v.length>0&&v.length<=max;
-    if(!isObject(value)||!Array.isArray(value.patients)||!Array.isArray(value.procedures)||!Array.isArray(value.reports))return false;
+    if(!isObject(value)||![undefined,1].includes(value.schemaVersion)||!Array.isArray(value.patients)||!Array.isArray(value.procedures)||!Array.isArray(value.reports))return false;
     const media=Array.isArray(value.media)?value.media:[];
     const {patients,procedures,reports}=value;
     if(patients.length>500||procedures.length>2000||reports.length>2000||media.length>500)return false;
