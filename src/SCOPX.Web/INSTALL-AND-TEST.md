@@ -49,3 +49,7 @@ The demo keeps the last successfully saved snapshot. If local browser storage is
 
 ## Demo image validation (Step 84)
 Only PNG, JPEG, GIF, and WebP images up to 2 MiB are accepted. The app checks the file's binary signature rather than trusting its extension or browser MIME label. SVG and other formats are rejected. These restrictions apply to the synthetic offline demo only.
+
+
+## Backup format version (Step 85)
+New exports include `schemaVersion: 1`. Imports accept version 1 and legacy backups without a version; unknown future schema versions are rejected to avoid silent misinterpretation. Keep a copy of important demo backups outside the browser profile.
