@@ -588,6 +588,9 @@ if (web/'app.js').exists():
     check('function isValidDemoBackup' in wa and 'procedureIds.has' in wa and 'data:image/' in wa, 'demo backup import validates record relationships and media data')
     check('schemaVersion:1' in wa and '[undefined,1].includes(value.schemaVersion)' in wa, 'demo backups are versioned while legacy versionless backups remain importable')
     check('id="resetDemoData"' in wi and 'if(!confirm(' in wa and 'structuredClone(demoSeed)' in wa, 'demo reset requires explicit confirmation and restores the synthetic seed')
+    check('class="skip-link"' in wi and 'tabindex="-1"' in wi and 'aria-current' in wa, 'web demo exposes keyboard skip navigation and active navigation semantics')
+    check('aria-expanded' in wi and "setAttribute('aria-expanded'" in wa, 'mobile navigation exposes its expanded/collapsed state')
+
 
 
     check('function detectDemoImageType' in wa and '0x89' in wa and '0xff' in wa and '0x57' in wa, 'demo media upload verifies PNG/JPEG/GIF/WebP file signatures')
