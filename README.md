@@ -394,3 +394,12 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - CI runs Android unit tests before producing the debug APK.
 - The mobile client remains a synthetic-data demo; this does not activate clinical API workflows.
 - See [Step 80 Android endpoint transport policy](docs/STEP-80-ANDROID-ENDPOINT-TRANSPORT-POLICY.md).
+
+
+## Step 81 — Android request-origin and redirect hardening
+
+- API requests are constrained to the configured HTTPS origin and the expected `/api/v1/` path family.
+- Automatic HTTP redirects are disabled to prevent bearer-token forwarding to another host.
+- Error response bodies are not displayed; connections are disconnected in a `finally` block.
+- Added unit tests for same-origin requests and rejection of host changes, HTTP downgrade, user-info, query strings, and unexpected paths.
+- See [Step 81 Android request-origin hardening](docs/STEP-81-ANDROID-REQUEST-ORIGIN-HARDENING.md).
