@@ -465,3 +465,7 @@ New JSON backups include schema version 1. Import accepts current version 1 and 
 
 ## Step 86 — Confirmed demo data reset
 Added an explicit reset control that asks for confirmation before restoring the seeded synthetic dataset. If local storage cannot persist the reset, the previous saved demo state is retained. See [Step 86 report](docs/STEP-86-CONFIRMED-DEMO-RESET.md).
+
+
+## Step 87 — Keyboard and navigation accessibility
+Added a visible-on-focus skip link, keyboard focus indicators, active navigation semantics, and an expanded state for the mobile menu. Browser acceptance tests exercise the skip link using the keyboard. See [Step 87 report](docs/STEP-87-WEB-ACCESSIBILITY.md).
