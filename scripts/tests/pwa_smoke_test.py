@@ -24,7 +24,7 @@ try:
     browser_available=True
     try:
         with sync_playwright() as p:
-            browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+            browser=p.chromium.launch(headless=True,args=['--no-sandbox'])
             page=browser.new_page(viewport={'width':1365,'height':850})
             errors=[]
             page.on('pageerror',lambda err:errors.append(str(err)))
@@ -57,6 +57,7 @@ try:
             })
             page.locator('#mediaForm input[name="caption"]').fill('Synthetic smoke image')
             page.locator('#mediaForm button[type="submit"]').click()
+            page.wait_for_selector('.media-card', timeout=5000)
             check(page.locator('.media-card').count()==1,'synthetic media upload and local gallery rendering work')
             with page.expect_download() as download_info:
                 page.locator('#exportData').click()
