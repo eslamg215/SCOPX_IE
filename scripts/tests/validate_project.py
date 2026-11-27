@@ -493,6 +493,7 @@ check(workflow_file.exists(), 'GitHub Actions build workflow exists')
 if workflow_file.exists():
     wf=workflow_file.read_text(encoding='utf-8')
     check('dotnet publish src/SCOPX.Workstation/SCOPX.Workstation.csproj' in wf and '--runtime win-x64' in wf, 'CI publishes the Windows x64 workstation preview')
+check('Verify bundled offline demo in Windows publish output' in wf and 'DemoWeb/index.html' in wf and 'DemoWeb/app.js' in wf, 'CI verifies bundled offline demo assets before artifact upload')
     check('--self-contained true' in wf and 'PublishSingleFile=true' in wf, 'Windows preview is self-contained and single-file')
     check('actions/upload-artifact@v4' in wf and 'retention-days: 7' in wf, 'CI uploads a short-retention preview artifact')
 
