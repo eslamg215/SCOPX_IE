@@ -432,6 +432,7 @@ check((android_root/'gradle.properties').exists() and 'android.useAndroidX=true'
 if (android_root/'app/build.gradle.kts').exists():
     ag=(android_root/'app/build.gradle.kts').read_text(encoding='utf-8')
     check('com.android.application' in ag and 'compileSdk = 35' in ag and 'minSdk = 26' in ag, 'Android app targets the configured SDK and minimum API')
+    check('JavaVersion.VERSION_17' in ag and 'jvmTarget = "17"' in ag, 'Android Java and Kotlin compile targets both use JVM 17')
 if workflow_file.exists():
     wf_text=workflow_file.read_text(encoding='utf-8')
     check('Build Android debug APK' in wf_text and 'assembleDebug' in wf_text, 'CI builds the Android debug APK')
