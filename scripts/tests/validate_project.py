@@ -426,6 +426,16 @@ if security_setup.exists():
 preflight=(ROOT/'scripts/windows/Preflight.ps1').read_text(encoding='utf-8')
 check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in preflight, 'Windows preflight checks migration runner dependencies')
 
+# Step 83 offline PWA browser acceptance checks
+pwa_smoke=ROOT/'scripts/tests/pwa_smoke_test.py'
+check(pwa_smoke.exists(), 'offline PWA browser acceptance test exists')
+if pwa_smoke.exists():
+    ps=pwa_smoke.read_text(encoding='utf-8')
+    check('sync_playwright' in ps and 'page.wait_for_selector' in ps, 'browser smoke test uses Playwright and waits for asynchronous media rendering')
+    check('executable_path=' not in ps, 'browser smoke test uses the Playwright-managed Chromium binary')
+if workflow_file.exists():
+    check('pwa-demo-smoke:' in wf_text and 'playwright install --with-deps chromium' in wf_text and 'pwa_smoke_test.py' in wf_text, 'CI runs the offline browser acceptance suite with managed Chromium')
+
 # Step 79 Android debug APK preview checks
 workflow_file=ROOT/'.github/workflows/build-validation.yml'
 wf_text=workflow_file.read_text(encoding='utf-8') if workflow_file.exists() else ''
