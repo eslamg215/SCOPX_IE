@@ -403,3 +403,7 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - Error response bodies are not displayed; connections are disconnected in a `finally` block.
 - Added unit tests for same-origin requests and rejection of host changes, HTTP downgrade, user-info, query strings, and unexpected paths.
 - See [Step 81 Android request-origin hardening](docs/STEP-81-ANDROID-REQUEST-ORIGIN-HARDENING.md).
+
+
+## Step 81 — Android WebView isolation
+The Android offline demo WebView is restricted to its bundled app-assets origin. External navigation, file URLs, and mixed content are blocked; CI tests the navigation policy. See [Step 81 report](docs/STEP-81-ANDROID-WEBVIEW-ISOLATION.md).
