@@ -37,3 +37,7 @@ The CI browser smoke test exercises synthetic patient creation, procedure state 
 
 ## Offline cache safety
 The service worker caches only the app's same-origin static shell. It does not intercept cross-origin requests or non-GET requests, and it only falls back to the cached index for navigation requests. Cache cleanup is limited to SCOPX demo cache names.
+
+
+## Backup import validation
+JSON imports are checked for supported record fields, unique IDs, valid patient/procedure relationships, allowed demo statuses, bounded field and collection sizes, and image data URLs before the current local dataset can be replaced. Invalid backups are rejected.
