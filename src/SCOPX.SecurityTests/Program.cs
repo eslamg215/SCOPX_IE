@@ -372,6 +372,30 @@ Require(!CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(1920, 1080, 3
     "capture options policy rejects padded pixel-format names");
 Require(!CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(1920, 1080, 30, new string('A', 17))),
     "capture options policy rejects oversized pixel-format names");
+
+// Step 74: use a validating decorator at the capture-provider boundary.
+await using (var guardedCapture = new ValidatedCaptureAdapter(new SimulatorCaptureAdapter()))
+{
+    Require(guardedCapture.Descriptor.Transport == CaptureTransport.Simulator,
+        "validated adapter exposes only the constructor-validated descriptor");
+    Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Ready,
+        "validated adapter accepts a well-formed simulator status");
+    await RequireThrowsAsync<ArgumentOutOfRangeException>(
+        () => guardedCapture.StartAsync(new CaptureStartOptions(1920, 1080, 30, "RAW")),
+        "validated adapter blocks unsupported stream options before forwarding");
+    Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Ready,
+        "blocked adapter start leaves the underlying simulator inactive");
+    await guardedCapture.StartAsync(new CaptureStartOptions(1280, 720, 30, "MJPEG"));
+    Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Capturing,
+        "validated adapter forwards an accepted start request");
+    await guardedCapture.StopAsync();
+    Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Ready,
+        "validated adapter forwards stop and observes the ready state");
+    await guardedCapture.DisposeAsync();
+    await RequireThrowsAsync<ObjectDisposedException>(
+        () => guardedCapture.GetStatusAsync(),
+        "validated adapter rejects status access after disposal");
+}
 await using (var optionsSimulator = new SimulatorCaptureAdapter())
 {
     await RequireThrowsAsync<ArgumentOutOfRangeException>(
