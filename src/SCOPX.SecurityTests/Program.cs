@@ -423,6 +423,8 @@ Require(!CaptureStatusPolicy.IsValid(new CaptureStatus((CaptureState)999, "bad s
     "capture status policy rejects unknown state enum values");
 Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, null, default)),
     "capture status policy rejects a missing update timestamp");
+Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, "future status", DateTimeOffset.UtcNow.AddMinutes(2))),
+    "capture status policy rejects timestamps more than one minute in the future");
 Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, new string('x', 501), DateTimeOffset.UtcNow)),
     "capture status policy rejects oversized status messages");
 Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, "bad\nmessage", DateTimeOffset.UtcNow)),
@@ -438,7 +440,10 @@ await using (var guardedFaultedAdapter = new ValidatedCaptureAdapter(faultedAdap
     await guardedFaultedAdapter.StopAsync();
     Require(faultedAdapter.StopCalls == 1,
         "validated adapter forwards stop as a cleanup attempt when provider is Faulted");
+    await guardedFaultedAdapter.DisposeAsync();
 }
+Require(faultedAdapter.DisposeCalls == 1,
+    "validated adapter disposes its underlying provider only once even when disposed repeatedly");
 var disconnectedAdapter = new FaultedCaptureAdapter { ReportedState = CaptureState.Disconnected };
 await using (var guardedDisconnectedAdapter = new ValidatedCaptureAdapter(disconnectedAdapter))
 {
@@ -447,6 +452,11 @@ await using (var guardedDisconnectedAdapter = new ValidatedCaptureAdapter(discon
         "validated adapter refuses to stop a disconnected provider");
     Require(disconnectedAdapter.StopCalls == 0,
         "disconnected provider is not called for stop");
+    await RequireThrowsAsync<InvalidOperationException>(
+        () => guardedDisconnectedAdapter.StartAsync(new CaptureStartOptions(640, 480, 30)),
+        "validated adapter refuses to start a disconnected provider");
+    Require(disconnectedAdapter.StartCalls == 0,
+        "disconnected provider is not called for start");
 }
 
 await RunClamAvFixtureAsync("stream: OK", true, "ClamAV INSTREAM clean response is accepted");
