@@ -424,6 +424,15 @@ if security_setup.exists():
 preflight=(ROOT/'scripts/windows/Preflight.ps1').read_text(encoding='utf-8')
 check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in preflight, 'Windows preflight checks migration runner dependencies')
 
+# Step 78 Windows workstation preview packaging checks
+workflow_file=ROOT/'.github/workflows/build-validation.yml'
+check(workflow_file.exists(), 'GitHub Actions build workflow exists')
+if workflow_file.exists():
+    wf=workflow_file.read_text(encoding='utf-8')
+    check('dotnet publish src/SCOPX.Workstation/SCOPX.Workstation.csproj' in wf and '--runtime win-x64' in wf, 'CI publishes the Windows x64 workstation preview')
+    check('--self-contained true' in wf and 'PublishSingleFile=true' in wf, 'Windows preview is self-contained and single-file')
+    check('actions/upload-artifact@v4' in wf and 'retention-days: 7' in wf, 'CI uploads a short-retention preview artifact')
+
 # Step 70 non-clinical recording lifecycle policy checks
 recording_policy=WORKSTATION/'Recording/RecordingLifecyclePolicy.cs'
 check(recording_policy.exists(), 'non-clinical recording lifecycle policy exists')
