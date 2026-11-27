@@ -36,7 +36,8 @@ try:
             check(page.evaluate("document.activeElement.id === 'viewRoot'"),'skip link moves keyboard focus to main content')
             check(page.locator('#pageTitle').inner_text()=='نظرة عامة','browser renders dashboard')
             check(page.locator('.stat-card').count()==4,'dashboard displays metric cards')
-            page.locator('#menuToggle').click()
+            # Desktop navigation is visible at the initial 1365px viewport.
+            # The mobile menu toggle is tested later after switching to a 390px viewport.
             page.locator('[data-view="patients"]').first.click()
             page.locator('[data-open-patient]').first.click()
             page.locator('#patientForm input[name="name"]').fill('Demo Smoke Patient')
