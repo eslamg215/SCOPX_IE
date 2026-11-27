@@ -355,6 +355,32 @@ Require(!CaptureDeviceDescriptorPolicy.IsValid(
     syntheticUsbDescriptor with { CompatibilityNote = new string('x', 501) }, out _),
     "capture descriptor policy enforces compatibility-note length bounds");
 
+// Step 73: bound stream negotiation options before adapter invocation.
+Require(CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(1920, 1080, 30, "MJPEG")),
+    "capture options policy accepts a supported synthetic 1080p MJPEG profile");
+Require(CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(7680, 4320, 120, "NV12")),
+    "capture options policy accepts the documented upper numeric bounds and supported pixel format");
+Require(!CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(7681, 1080, 30)),
+    "capture options policy rejects width above the configured maximum");
+Require(!CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(1920, 4321, 30)),
+    "capture options policy rejects height above the configured maximum");
+Require(!CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(1920, 1080, 121)),
+    "capture options policy rejects frame rates above the configured maximum");
+Require(!CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(1920, 1080, 30, "RAW")),
+    "capture options policy rejects unsupported pixel formats");
+Require(!CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(1920, 1080, 30, " MJPEG ")),
+    "capture options policy rejects padded pixel-format names");
+Require(!CaptureStartOptionsPolicy.IsValid(new CaptureStartOptions(1920, 1080, 30, new string('A', 17))),
+    "capture options policy rejects oversized pixel-format names");
+await using (var optionsSimulator = new SimulatorCaptureAdapter())
+{
+    await RequireThrowsAsync<ArgumentOutOfRangeException>(
+        () => optionsSimulator.StartAsync(new CaptureStartOptions(1920, 1080, 30, "RAW")),
+        "simulator refuses unsupported pixel formats before entering capture state");
+    Require((await optionsSimulator.GetStatusAsync()).State == CaptureState.Ready,
+        "rejected capture options leave the simulator ready and inactive");
+}
+
 CryptographicOperations.ZeroMemory(mediaKeyA);
 CryptographicOperations.ZeroMemory(mediaKeyB);
 
