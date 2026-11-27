@@ -110,6 +110,9 @@ try:
             page.reload(wait_until='domcontentloaded',timeout=7000)
             check(page.locator('#pageTitle').inner_text()=='نظرة عامة','PWA reloads the cached demo shell while offline')
             page.context.set_offline(False)
+            page.evaluate("localStorage.setItem('scopx.ie.demo.v01', JSON.stringify({patients:[{}],procedures:[],reports:[],media:[]}))")
+            page.reload(wait_until='networkidle')
+            check(page.get_by_text('Demo Patient 01').count()>0 and page.get_by_text('Demo Smoke Patient').count()==0,'malformed persisted local data is replaced with the safe synthetic seed')
             browser.close()
     except Exception as e:
         browser_available=False
