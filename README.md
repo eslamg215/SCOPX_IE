@@ -6,8 +6,8 @@
 - The Windows workstation opens the bundled offline demo through **Open Offline Demo**. The Android wrapper opens the same canonical demo assets; CI checks the Android bundle against the web source.
 - The offline demo supports synthetic patient/procedure/report workflows, local synthetic raster images, JSON export/import, versioned backups, confirmed reset, local-storage recovery, and offline shell caching.
 - Recent changes include Android WebView origin isolation, HTTPS API endpoint checks, browser keyboard navigation, and stricter local demo data validation.
-- CI has previously passed the API/Windows build, Android build, PostgreSQL/RLS smoke tests, and browser acceptance suite on an earlier revision. The latest revision's CI runs must finish successfully before the current preview is declared verified.
-- Pull request #1 remains **draft and unmerged**. No production deployment, real patient data, clinical media routes, or real capture hardware are enabled.
+- Latest branch revision `fed3e276a4ac1a01336b97a54952df9097f15e8f` passed GitHub Actions run [#1003](https://github.com/eslamg215/SCOPX_IE/actions/runs/46023925415): browser acceptance, Android debug APK build and asset-integrity check, API/Windows build and package checks, and PostgreSQL migrations/grants/RLS plus API integration tests.
+- Physical Android and Windows acceptance remains pending user-side testing; CI is not a substitute for device testing. See [Step 101 physical acceptance checklist](docs/STEP-101-POST-BUILD-PHYSICAL-ACCEPTANCE.md). Pull request #1 remains **draft and unmerged**. No production deployment, real patient data, clinical media routes, or real capture hardware are enabled.
 
 **Not production/clinical-ready:** physical Windows/Android device checks, real hardware adapter drivers, secure production storage and key management, operational malware scanning, retention/legal approvals, production backup/restore, clinical validation, and the pending global authentication audit-store policy approval remain outstanding.
 
