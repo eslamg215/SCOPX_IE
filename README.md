@@ -376,3 +376,12 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - It does not enable real capture hardware, media routes, or clinical workflows. The API/database must be configured separately.
 - Download it from the successful workflow run's Artifacts section and extract the ZIP before running `SCOPX.Workstation.exe`.
 - See [Step 78 Windows preview packaging](docs/STEP-78-WINDOWS-PREVIEW-PACKAGING.md).
+
+
+## Step 79 — Android debug APK preview
+
+- CI now builds the Kotlin Android companion using Java 17, Android SDK 35, Android Gradle Plugin 8.7.3, and Gradle 8.9.
+- The debug APK is uploaded as `SCOPX.Android-debug-preview` for seven days.
+- This is a debug-signed development APK, not a Play Store release or production-signed application.
+- The app remains an offline synthetic-data demo; backend login is a separate optional scaffold and no clinical capture is enabled.
+- See [Step 79 Android APK preview](docs/STEP-79-ANDROID-APK-PREVIEW.md).
