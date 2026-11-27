@@ -11,12 +11,13 @@
   <title>SCOPX.I.E — Demo</title>
 </head>
 <body>
+  <a class="skip-link" href="#viewRoot">تخطي إلى المحتوى الرئيسي</a>
   <div class="demo-banner"><span class="dot"></span> نسخة عرض ببيانات وهمية — ممنوع إدخال بيانات مرضى حقيقية</div>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand"><div class="brand-mark">S<span>.</span></div><div><strong>SCOPX<span>.</span>I.E</strong><small>Endoscopy Intelligence</small></div></div>
       <nav aria-label="التنقل الرئيسي">
-        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span> الرئيسية</button>
+        <button class="nav-item active" data-view="dashboard" aria-current="page"><span class="nav-icon">⌂</span> الرئيسية</button>
         <button class="nav-item" data-view="patients"><span class="nav-icon">♙</span> المرضى التجريبيون</button>
         <button class="nav-item" data-view="procedures"><span class="nav-icon">◉</span> الإجراءات</button>
         <button class="nav-item" data-view="reports"><span class="nav-icon">▤</span> التقارير</button>
@@ -25,8 +26,8 @@
       <div class="sidebar-bottom"><div class="status-chip"><span class="pulse"></span> Demo Mode · Offline</div><small>Build 0.1 · UI Preview</small></div>
     </aside>
     <main class="main">
-      <header class="topbar"><button class="mobile-menu" id="menuToggle" aria-label="القائمة">☰</button><div><div class="eyebrow">WORKSPACE / DEMO</div><h1 id="pageTitle">نظرة عامة</h1></div><div class="top-actions"><button class="button ghost" id="exportData" title="تصدير نسخة JSON">تصدير</button><button class="button ghost" id="importData" title="استيراد نسخة JSON">استيراد</button><input type="file" id="importFile" accept="application/json,.json" hidden><div class="local-status"><span class="pulse"></span> بيانات محلية</div><div class="avatar">D</div></div></header>
-      <section class="content" id="viewRoot" aria-live="polite"></section>
+      <header class="topbar"><button class="mobile-menu" id="menuToggle" aria-label="القائمة" aria-controls="sidebar" aria-expanded="false">☰</button><div><div class="eyebrow">WORKSPACE / DEMO</div><h1 id="pageTitle">نظرة عامة</h1></div><div class="top-actions"><button class="button ghost" id="exportData" aria-label="تصدير نسخة JSON" title="تصدير نسخة JSON">تصدير</button><button class="button ghost" id="importData" aria-label="استيراد نسخة JSON" title="استيراد نسخة JSON">استيراد</button><button class="button ghost" id="resetDemoData" aria-label="إعادة ضبط بيانات العرض" title="إعادة بيانات العرض إلى الحالة الافتراضية">إعادة الضبط</button><input type="file" id="importFile" accept="application/json,.json" hidden><div class="local-status"><span class="pulse"></span> بيانات محلية</div><div class="avatar">D</div></div></header>
+      <section class="content" id="viewRoot" aria-live="polite" tabindex="-1"></section>
       <footer class="footer-note">SCOPX.I.E · واجهة تجريبية فقط · غير مخصصة للاستخدام السريري</footer>
     </main>
   </div>
