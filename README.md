@@ -407,3 +407,7 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 
 ## Step 81 — Android WebView isolation
 The Android offline demo WebView is restricted to its bundled app-assets origin. External navigation, file URLs, and mixed content are blocked; CI tests the navigation policy. See [Step 81 report](docs/STEP-81-ANDROID-WEBVIEW-ISOLATION.md).
+
+
+## Step 82 — Windows offline demo launch
+The Windows workstation build now bundles the responsive web demo assets and exposes an **Open Offline Demo** action to launch the local demo in the default browser. The separate WinForms feature cards remain placeholders; the launched web demo contains the synthetic-data workflows. See [Step 82 report](docs/STEP-82-WINDOWS-OFFLINE-DEMO-LAUNCH.md).
