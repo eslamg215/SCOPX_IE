@@ -385,3 +385,12 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - This is a debug-signed development APK, not a Play Store release or production-signed application.
 - The app remains an offline synthetic-data demo; backend login is a separate optional scaffold and no clinical capture is enabled.
 - See [Step 79 Android APK preview](docs/STEP-79-ANDROID-APK-PREVIEW.md).
+
+
+## Step 80 — Android API endpoint transport policy
+
+- The Android sign-in screen now requires an HTTPS base URL and rejects embedded credentials, paths, query strings, fragments, and malformed ports.
+- Added deterministic JUnit tests for accepted HTTPS endpoints and rejected unsafe URL forms.
+- CI runs Android unit tests before producing the debug APK.
+- The mobile client remains a synthetic-data demo; this does not activate clinical API workflows.
+- See [Step 80 Android endpoint transport policy](docs/STEP-80-ANDROID-ENDPOINT-TRANSPORT-POLICY.md).
