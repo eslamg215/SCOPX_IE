@@ -55,9 +55,11 @@ public sealed class WorkstationForm : Form
 
     private async Task CheckApiAsync()
     {
-        if (!Uri.TryCreate(_apiUrl.Text.Trim(), UriKind.Absolute, out var baseUri) || (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
+        if (!Uri.TryCreate(_apiUrl.Text.Trim(), UriKind.Absolute, out var baseUri) || !ApiEndpointPolicy.IsAllowedBaseUri(baseUri))
         {
-            _status.Text = "Invalid server URL"; _status.ForeColor = Color.OrangeRed; return;
+            _status.Text = "Use HTTPS for remote servers; HTTP is allowed only on this computer.";
+            _status.ForeColor = Color.OrangeRed;
+            return;
         }
         _check.Enabled = false; _status.Text = "Checking..."; _status.ForeColor = Color.Gold;
         try
