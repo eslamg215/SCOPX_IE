@@ -20,8 +20,8 @@
 ## Data storage
 Patient, procedure, report, and media demo records use browser localStorage. Media data URLs can consume browser quota; limit image size and use synthetic test imagery only. JSON backups contain the entire demo dataset.
 
-## Android APK source
-See `../SCOPX.Android/README.md`. APK building requires Android Studio, SDK and Gradle; the current workspace does not include a compiled APK.
+## Android APK preview artifact
+The compiled debug APK is produced by GitHub Actions, not committed to the source tree. Open the successful [SCOPX build validation workflow](https://github.com/eslamg215/SCOPX_IE/actions), select the latest successful run for the `fix/database-runtime-security` branch, and download the `SCOPX.Android-debug-preview` artifact ZIP. Extract `app-debug.apk` and install it on a test device. See `../SCOPX.Android/README.md` for device steps. The APK is a debug preview, not a store release.
 
 ## Verification
 Run `python3 ../scripts/tests/validate_project.py` and `python3 ../scripts/tests/pwa_smoke_test.py`. The HTTP smoke script checks asset delivery; browser interaction testing may be unavailable depending on the environment.
