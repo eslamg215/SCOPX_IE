@@ -426,6 +426,7 @@ check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in prefli
 
 # Step 79 Android debug APK preview checks
 workflow_file=ROOT/'.github/workflows/build-validation.yml'
+wf_text=workflow_file.read_text(encoding='utf-8') if workflow_file.exists() else ''
 android_root=ROOT/'src/SCOPX.Android'
 check((android_root/'settings.gradle.kts').exists() and (android_root/'app/build.gradle.kts').exists(), 'Android Gradle project files exist')
 check((android_root/'gradle.properties').exists() and 'android.useAndroidX=true' in (android_root/'gradle.properties').read_text(encoding='utf-8'), 'AndroidX support is explicitly enabled for Android builds')
