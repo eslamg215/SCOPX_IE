@@ -31,3 +31,7 @@ The Android WebView now permits navigation and resource loading only from the bu
 
 ## Step 89 — Navigation edge cases
 The WebView allowlist rejects missing hosts, percent-encoded paths, and backslash path forms in addition to external origins and file URLs. JUnit regression tests cover these cases.
+
+
+## Step 91 — Bundled asset parity
+The Android WebView assets under `app/src/main/assets/scopx/` are kept byte-for-byte identical to `src/SCOPX.Web/`. CI checks HTML, CSS, JavaScript, manifest, service worker, and icon parity before release artifacts are considered valid.
