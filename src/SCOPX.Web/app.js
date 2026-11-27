@@ -74,8 +74,9 @@
     if(!media.every(m=>(m.procedureId===null||m.procedureId===undefined||procedureIds.has(m.procedureId))&&typeof m.dataUrl==='string'&&m.dataUrl.startsWith('data:image/')&&m.dataUrl.length<=3000000&&(m.caption===undefined||typeof m.caption==='string'&&m.caption.length<=100)))return false;
     return true;
   }
+  const MAX_DEMO_BACKUP_BYTES=10*1024*1024;
   $('#importData').onclick=()=>$('#importFile').click();
-  $('#importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const incoming=JSON.parse(await file.text());if(!isValidDemoBackup(incoming))throw new Error('ملف غير متوافق');if(!confirm('سيتم استبدال بيانات العرض المحلية الحالية. هل تريد المتابعة؟'))return;data={patients:incoming.patients,procedures:incoming.procedures,reports:incoming.reports,media:Array.isArray(incoming.media)?incoming.media:[]};save();setView('dashboard');alert('تم استيراد بيانات العرض.');}catch(err){alert('فشل الاستيراد: الملف غير صالح أو غير متوافق.');}e.target.value='';});
+  $('#importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size<=0||file.size>MAX_DEMO_BACKUP_BYTES)throw new Error('Backup file size is outside the allowed limit');const incoming=JSON.parse(await file.text());if(!isValidDemoBackup(incoming))throw new Error('ملف غير متوافق');if(!confirm('سيتم استبدال بيانات العرض المحلية الحالية. هل تريد المتابعة؟'))return;data={patients:incoming.patients,procedures:incoming.procedures,reports:incoming.reports,media:Array.isArray(incoming.media)?incoming.media:[]};save();setView('dashboard');alert('تم استيراد بيانات العرض.');}catch(err){alert('فشل الاستيراد: الملف غير صالح أو غير متوافق.');}e.target.value='';});
   render();
   if('serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
