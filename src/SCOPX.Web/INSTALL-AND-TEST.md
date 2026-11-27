@@ -41,3 +41,7 @@ The service worker caches only the app's same-origin static shell. It does not i
 
 ## Backup import validation
 JSON imports are checked for supported record fields, unique IDs, valid patient/procedure relationships, allowed demo statuses, bounded field and collection sizes, and image data URLs before the current local dataset can be replaced. Invalid backups are rejected.
+
+
+## Local storage recovery (Step 83)
+The demo keeps the last successfully saved snapshot. If local browser storage is full or unavailable during a write, the change is rolled back to the last saved snapshot and the UI reports that it was not saved. Export backups regularly during testing; browser storage is not a clinical record store.
