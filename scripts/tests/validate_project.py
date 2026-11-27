@@ -588,6 +588,9 @@ if (web/'app.js').exists():
     check('function isValidDemoBackup' in wa and 'procedureIds.has' in wa and 'data:image/' in wa, 'demo backup import validates record relationships and media data')
     check('patients.length>500' in wa and 'media.length>500' in wa and 'procedures.length>2000' in wa, 'demo backup import enforces bounded record counts')
     check('localStorage' in wa and 'patientForm' in wa and 'procedureForm' in wa, 'demo client supports local storage and patient/procedure forms')
+    check('lastPersistedJson' in wa and 'تعذر حفظ التغييرات محليًا' in wa, 'demo client restores last persisted snapshot when browser storage writes fail')
+    check('if(!save())return' in wa and 'if(transition(id,\'completed\'))makeReport(id)' in wa, 'demo form and state transitions stop after failed persistence')
+
     check('scheduled' in wa and 'in_progress' in wa and 'completed' in wa and 'makeReport' in wa, 'demo procedure status flow and report preview generation included')
 check((web/'manifest.webmanifest').exists() and (web/'sw.js').exists() and (web/'assets/icon.svg').exists(), 'PWA manifest, service worker and icon assets exist')
 sw_text=(web/'sw.js').read_text(encoding='utf-8')
