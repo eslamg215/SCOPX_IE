@@ -427,6 +427,16 @@ if security_setup.exists():
 preflight=(ROOT/'scripts/windows/Preflight.ps1').read_text(encoding='utf-8')
 check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in preflight, 'Windows preflight checks migration runner dependencies')
 
+# Step 87 offline backup import size-bound checks
+web_app=ROOT/'src/SCOPX.Web/app.js'
+if web_app.exists():
+    wa=web_app.read_text(encoding='utf-8')
+    check('MAX_DEMO_BACKUP_BYTES=10*1024*1024' in wa, 'offline backup import has a 10 MiB file-size ceiling')
+    check(wa.find('file.size>MAX_DEMO_BACKUP_BYTES') < wa.find('await file.text()'), 'backup size is checked before reading the file into memory')
+if pwa_smoke.exists():
+    ps=pwa_smoke.read_text(encoding='utf-8')
+    check('oversized_backup' in ps and 'oversized backup is rejected' in ps, 'browser acceptance test covers oversized backup rejection')
+
 # Step 83 offline PWA browser acceptance checks
 workflow_file=ROOT/'.github/workflows/build-validation.yml'
 wf_text=workflow_file.read_text(encoding='utf-8') if workflow_file.exists() else ''
