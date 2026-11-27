@@ -415,3 +415,7 @@ The Windows workstation build now bundles the responsive web demo assets and exp
 
 ## Step 83 — Demo workflow acceptance coverage
 The browser smoke suite now exercises synthetic media upload, JSON backup contents, and browser-reload persistence in addition to patient/procedure/report workflows and mobile layout. These remain local demo checks only. See [Step 83 report](docs/STEP-83-DEMO-WORKFLOW-ACCEPTANCE-TESTS.md).
+
+
+## Step 84 — PWA offline cache isolation
+The service worker now ignores cross-origin and non-GET requests, caches only known same-origin app-shell assets, limits offline document fallback to navigation, and only cleans up SCOPX-owned cache names. See [Step 84 report](docs/STEP-84-PWA-OFFLINE-CACHE-ISOLATION.md).
