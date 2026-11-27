@@ -65,3 +65,7 @@ Press Tab from the top of the page to reach **تخطي إلى المحتوى ا�
 
 ## Offline app-shell update (Step 88)
 After a new service-worker build is installed, the updated cached shell activates and takes control of open app pages. The browser acceptance suite verifies that the demo can reload from the cache while offline. Locally entered synthetic data remains in browser Local Storage; export backups separately.
+
+
+## Local data recovery at startup (Step 90)
+On startup, the app validates stored synthetic data. If the saved structure is malformed or unsupported, it restores the sample dataset rather than attempting to render unsafe or inconsistent records.
