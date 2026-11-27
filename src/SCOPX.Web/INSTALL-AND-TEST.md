@@ -90,3 +90,7 @@ Follow the Android physical-device steps in `../SCOPX.Android/README.md`. The of
 - Reset the synthetic dataset only after saving any demo backup you want to keep.
 
 Do not enter real patient details, clinical findings, or real endoscopy images. These steps verify the preview UI only; they do not validate capture hardware, clinical workflow, or production deployment.
+
+
+## Storage failure test (Step 95)
+The automated browser suite simulates a browser storage quota failure during a synthetic patient save. The expected result is a warning, no new saved record, and an open form so the user can retry after freeing space.
