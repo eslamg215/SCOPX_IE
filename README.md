@@ -481,3 +481,7 @@ Hardened the bundled-asset navigation allowlist for malformed host values, perce
 
 ## Step 90 — Startup validation of local demo state
 The app now validates the persisted browser dataset against the same bounded schema used for backup import before rendering it. Invalid or corrupted local demo state is replaced with the synthetic starter dataset. Browser acceptance tests cover malformed stored data recovery. See [Step 90 report](docs/STEP-90-LOCAL-STATE-VALIDATION.md).
+
+
+## Step 91 — Android demo asset parity
+Synchronized the Android WebView's bundled HTML, CSS, JavaScript, manifest, service worker, and icon with the canonical web demo. CI now fails if the two copies drift. See [Step 91 report](docs/STEP-91-ANDROID-ASSET-PARITY.md).
