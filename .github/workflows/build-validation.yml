@@ -157,6 +157,8 @@ jobs:
         run: python -m playwright install --with-deps chromium
 
       - name: Run offline PWA and browser acceptance tests
+        env:
+          SCOPX_REQUIRE_BROWSER: "1"
         run: python scripts/tests/pwa_smoke_test.py
 
   postgres-security-smoke:
