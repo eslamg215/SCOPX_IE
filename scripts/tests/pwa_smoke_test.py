@@ -105,6 +105,11 @@ try:
             check(page.locator('#menuToggle').is_visible(),'mobile navigation toggle visible')
             width=page.evaluate('document.documentElement.scrollWidth')
             check(width<=410,f'mobile viewport avoids horizontal overflow ({width}px)')
+            page.evaluate("navigator.serviceWorker.ready")
+            page.context.set_offline(True)
+            page.reload(wait_until='domcontentloaded',timeout=7000)
+            check(page.locator('#pageTitle').inner_text()=='نظرة عامة','PWA reloads the cached demo shell while offline')
+            page.context.set_offline(False)
             browser.close()
     except Exception as e:
         browser_available=False
