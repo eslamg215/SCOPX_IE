@@ -396,6 +396,9 @@ await using (var guardedCapture = new ValidatedCaptureAdapter(new SimulatorCaptu
     await guardedCapture.StopAsync();
     Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Ready,
         "validated adapter forwards stop and observes the ready state");
+    await guardedCapture.StopAsync();
+    Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Ready,
+        "validated adapter treats stop while already Ready as an idempotent no-op");
     await guardedCapture.DisposeAsync();
     await RequireThrowsAsync<ObjectDisposedException>(
         () => guardedCapture.GetStatusAsync(),
@@ -432,6 +435,9 @@ await using (var guardedFaultedAdapter = new ValidatedCaptureAdapter(faultedAdap
         "validated adapter refuses to start when the provider reports Faulted");
     Require(faultedAdapter.StartCalls == 0,
         "faulted adapter start request is blocked before reaching the provider");
+    await guardedFaultedAdapter.StopAsync();
+    Require(faultedAdapter.StopCalls == 1,
+        "validated adapter forwards stop as a cleanup attempt when provider is Faulted");
 }
 
 await RunClamAvFixtureAsync("stream: OK", true, "ClamAV INSTREAM clean response is accepted");
@@ -1172,6 +1178,8 @@ sealed class FakeHospitalMembershipRepository(Guid ownerId, IEnumerable<Hospital
 sealed class FaultedCaptureAdapter : IDeviceCaptureAdapter
 {
     public int StartCalls { get; private set; }
+    public int StopCalls { get; private set; }
+    public CaptureState ReportedState { get; set; } = CaptureState.Faulted;
     public CaptureDeviceDescriptor Descriptor => new(
         "usb:synthetic-faulted-device", "Synthetic Faulted Capture Adapter",
         CaptureTransport.Usb, "Synthetic Vendor", "Fault Test", CaptureState.Faulted);
@@ -1179,7 +1187,7 @@ sealed class FaultedCaptureAdapter : IDeviceCaptureAdapter
     public Task<CaptureStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(new CaptureStatus(CaptureState.Faulted, "Synthetic fault", DateTimeOffset.UtcNow));
+        return Task.FromResult(new CaptureStatus(ReportedState, "Synthetic adapter state", DateTimeOffset.UtcNow));
     }
 
     public Task StartAsync(CaptureStartOptions options, CancellationToken cancellationToken = default)
@@ -1192,6 +1200,7 @@ sealed class FaultedCaptureAdapter : IDeviceCaptureAdapter
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        StopCalls++;
         return Task.CompletedTask;
     }
 
