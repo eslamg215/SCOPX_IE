@@ -50,7 +50,9 @@ jobs:
             "artifacts/SCOPX.Workstation-win-x64/DemoWeb/index.html",
             "artifacts/SCOPX.Workstation-win-x64/DemoWeb/app.js",
             "artifacts/SCOPX.Workstation-win-x64/DemoWeb/styles.css",
-            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/sw.js"
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/sw.js",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/manifest.webmanifest",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/assets/icon.svg"
           )
           foreach ($file in $required) {
             if (-not (Test-Path $file -PathType Leaf)) { throw "Missing bundled demo asset: $file" }
