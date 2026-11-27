@@ -550,6 +550,10 @@ if (web/'app.js').exists():
     check('localStorage' in wa and 'patientForm' in wa and 'procedureForm' in wa, 'demo client supports local storage and patient/procedure forms')
     check('scheduled' in wa and 'in_progress' in wa and 'completed' in wa and 'makeReport' in wa, 'demo procedure status flow and report preview generation included')
 check((web/'manifest.webmanifest').exists() and (web/'sw.js').exists() and (web/'assets/icon.svg').exists(), 'PWA manifest, service worker and icon assets exist')
+sw_text=(web/'sw.js').read_text(encoding='utf-8')
+check("url.origin!==self.location.origin" in sw_text, 'PWA service worker ignores cross-origin requests')
+check("key.startsWith(CACHE_PREFIX)" in sw_text and "request.method!=='GET'" in sw_text, 'PWA service worker only rotates its own cache and ignores non-GET requests')
+check("request.mode!=='navigate'" in sw_text and "if(request.mode==='navigate')" in sw_text, 'PWA offline fallback is limited to navigations and known app assets')
 check((ROOT/'docs/STEP-39-RESPONSIVE-PWA-CLIENT.md').exists() and 'Step 39' in readme, 'Step 39 PWA run instructions and limitations documented')
 check((ROOT/'scripts/tests/pwa_smoke_test.py').exists(), 'PWA HTTP smoke-test script is included')
 
