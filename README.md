@@ -411,3 +411,7 @@ The Android offline demo WebView is restricted to its bundled app-assets origin.
 
 ## Step 82 — Windows offline demo launch
 The Windows workstation build now bundles the responsive web demo assets and exposes an **Open Offline Demo** action to launch the local demo in the default browser. The separate WinForms feature cards remain placeholders; the launched web demo contains the synthetic-data workflows. See [Step 82 report](docs/STEP-82-WINDOWS-OFFLINE-DEMO-LAUNCH.md).
+
+
+## Step 83 — Demo workflow acceptance coverage
+The browser smoke suite now exercises synthetic media upload, JSON backup contents, and browser-reload persistence in addition to patient/procedure/report workflows and mobile layout. These remain local demo checks only. See [Step 83 report](docs/STEP-83-DEMO-WORKFLOW-ACCEPTANCE-TESTS.md).
