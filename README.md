@@ -435,3 +435,10 @@ JSON backup import now validates record shapes, unique IDs, linked patient/proce
 
 ## Step 86 — Windows demo artifact verification
 The Windows CI publish job now checks that the packaged preview contains the offline demo HTML, JavaScript, CSS, and service worker before uploading the artifact. See [Step 86 report](docs/STEP-86-WINDOWS-DEMO-ARTIFACT-CHECK.md).
+
+
+## Step 87 — Offline backup import memory bound
+
+- Offline demo backup imports now reject empty files and files larger than 10 MiB before reading them into memory.
+- Browser acceptance coverage verifies an oversized backup cannot replace existing synthetic records.
+- See [Step 87 backup import size bound](docs/STEP-87-OFFLINE-BACKUP-IMPORT-SIZE-BOUND.md).
