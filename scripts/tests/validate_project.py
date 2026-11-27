@@ -442,6 +442,14 @@ if capture_contract.exists():
     check('cancellationToken.ThrowIfCancellationRequested()' in cc, 'simulator status/start/stop operations honor cancellation')
     check('_state == CaptureState.Disconnected' in cc and 'ObjectDisposedException' in cc, 'disposed simulator cannot be restarted or stopped')
 check('DeviceCaptureContracts.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'capture contracts are linked into portable regression tests')
+descriptor_policy=WORKSTATION/'Devices/CaptureDeviceDescriptorPolicy.cs'
+check(descriptor_policy.exists(), 'capture device descriptor validation policy exists')
+if descriptor_policy.exists():
+    dp=descriptor_policy.read_text(encoding='utf-8')
+    check('Enum.IsDefined' in dp and 'char.IsControl' in dp, 'capture descriptor policy rejects unknown enums and control characters')
+    check('simulator://' in dp and 'No Video' in dp, 'capture simulator metadata must be explicitly distinguished from hardware')
+check('CaptureDeviceDescriptorPolicy.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'descriptor validation policy is linked into portable regression tests')
+
 
 
 # Membership repository tenant-context repair checks
