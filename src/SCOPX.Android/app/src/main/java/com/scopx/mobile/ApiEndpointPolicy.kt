@@ -21,4 +21,23 @@ object ApiEndpointPolicy {
             false
         }
     }
+
+    fun isAllowedRequestUrl(baseUrl: String, requestUrl: String): Boolean {
+        if (!isAllowedBaseUrl(baseUrl)) return false
+        return try {
+            val base = URI(baseUrl.trimEnd('/'))
+            val request = URI(requestUrl)
+            request.isAbsolute
+                && request.scheme.equals("https", ignoreCase = true)
+                && !request.host.isNullOrBlank()
+                && request.host.equals(base.host, ignoreCase = true)
+                && request.port == base.port
+                && request.rawUserInfo == null
+                && request.rawQuery == null
+                && request.rawFragment == null
+                && request.rawPath.startsWith("/api/v1/")
+        } catch (_: URISyntaxException) {
+            false
+        }
+    }
 }
