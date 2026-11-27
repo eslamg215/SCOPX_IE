@@ -32,20 +32,27 @@ public sealed class SimulatorCaptureAdapter : IDeviceCaptureAdapter
     public CaptureDeviceDescriptor Descriptor => new("simulator://scopx-test-source", "SCOPX Test Source (No Video)", CaptureTransport.Simulator, "SCOPX", "Test Source", _state, "Test-only status simulator; no image/video is captured.");
 
     public Task<CaptureStatus> GetStatusAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(new CaptureStatus(_state, "Simulation only — no real capture", DateTimeOffset.UtcNow));
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new CaptureStatus(_state, "Simulation only — no real capture", DateTimeOffset.UtcNow));
+    }
 
     public Task StartAsync(CaptureStartOptions options, CancellationToken cancellationToken = default)
     {
-        if (options.Width is < 1 or > 7680 || options.Height is < 1 or > 4320 || options.FramesPerSecond is < 1 or > 120)
-            throw new ArgumentOutOfRangeException(nameof(options), "Requested capture settings are outside the safe test bounds.");
-        if (_state == CaptureState.Capturing) throw new InvalidOperationException("Capture is already running.");
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_state == CaptureState.Disconnected) throw new ObjectDisposedException(nameof(SimulatorCaptureAdapter));
+        if (_state != CaptureState.Ready) throw new InvalidOperationException("The simulator is not ready to start.");
+        if (!CaptureStartOptionsPolicy.IsValid(options))
+            throw new ArgumentOutOfRangeException(nameof(options), "Requested capture settings are outside the supported test policy.");
         _state = CaptureState.Capturing;
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-        _state = CaptureState.Ready;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_state == CaptureState.Disconnected) throw new ObjectDisposedException(nameof(SimulatorCaptureAdapter));
+        if (_state == CaptureState.Capturing) _state = CaptureState.Ready;
         return Task.CompletedTask;
     }
 

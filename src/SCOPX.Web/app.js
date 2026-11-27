@@ -13,10 +13,29 @@
     media: []
   };
   const KEY='scopx.ie.demo.v01';
+  const MAX_DEMO_BACKUP_BYTES=10*1024*1024;
   let data;
-  try { data=JSON.parse(localStorage.getItem(KEY)||'null'); } catch { data=null; }
-  if(!data||!Array.isArray(data.patients)||!Array.isArray(data.procedures)||!Array.isArray(data.reports)) { data=structuredClone(demoSeed); save(); } if(!Array.isArray(data.media)) data.media=[];
-  function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+  let lastPersistedJson=null;
+  try {
+    const stored=localStorage.getItem(KEY);
+    data=stored?JSON.parse(stored):null;
+    if(data&&Array.isArray(data.patients)&&Array.isArray(data.procedures)&&Array.isArray(data.reports)) lastPersistedJson=stored;
+  } catch { data=null; lastPersistedJson=null; }
+  if(!isValidDemoBackup(data)) { data=structuredClone(demoSeed); save(); }
+  if(!Array.isArray(data.media)) data.media=[];
+  function save(){
+    try {
+      const serialized=JSON.stringify(data);
+      localStorage.setItem(KEY,serialized);
+      lastPersistedJson=serialized;
+      return true;
+    } catch {
+      try { data=lastPersistedJson?JSON.parse(lastPersistedJson):structuredClone(demoSeed); }
+      catch { data=structuredClone(demoSeed); lastPersistedJson=null; }
+      alert('تعذر حفظ التغييرات محليًا. قد تكون مساحة المتصفح ممتلئة؛ تم الاحتفاظ بآخر نسخة محفوظة.');
+      return false;
+    }
+  }
   const views={dashboard:'نظرة عامة',patients:'المرضى التجريبيون',procedures:'الإجراءات',reports:'التقارير',media:'الصور والوسائط'};
   let current='dashboard';
   const dateLabel=(iso)=>{try{return new Date(iso+'T00:00:00').toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})}catch{return iso||'—'}};
@@ -25,7 +44,7 @@
   const initials=(name='Demo')=>name.split(' ').slice(0,2).map(s=>s[0]).join('').toUpperCase();
   const statusName=s=>({scheduled:'مجدول',in_progress:'قيد التنفيذ',completed:'مكتمل',draft:'مسودة',review:'مراجعة'}[s]||s);
   const tagClass=s=>s==='completed'?'completed':s==='review'?'review':s==='scheduled'?'scheduled':'draft';
-  function setView(v){current=v;$('#pageTitle').textContent=views[v]||views.dashboard;document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));$('#sidebar').classList.remove('open');render();}
+  function setView(v){current=v;$('#pageTitle').textContent=views[v]||views.dashboard;document.querySelectorAll('.nav-item').forEach(b=>{const active=b.dataset.view===v;b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});$('#sidebar').classList.remove('open');$('#menuToggle').setAttribute('aria-expanded','false');render();}
   function empty(msg){return `<div class="empty-state">${msg}</div>`;}
   function patientRow(p){return `<div class="list-row"><div class="person-mark">${initials(p.name)}</div><div class="list-main"><strong>${esc(p.name)}</strong><small>${esc(p.record)} · ${p.age?esc(p.age)+' سنة':'العمر غير محدد'}</small></div><span class="list-meta">${dateLabel(p.createdAt)}</span></div>`;}
   function patientCard(p){const n=data.procedures.filter(x=>x.patientId===p.id).length;return `<article class="patient-card"><div class="card-top"><div class="person-mark">${initials(p.name)}</div><div><strong>${esc(p.name)}</strong><small>${esc(p.record)}</small></div></div><div class="card-info"><div class="info-cell"><small>العمر (تجريبي)</small><span>${p.age?esc(p.age)+' سنة':'غير محدد'}</span></div><div class="info-cell"><small>عدد الإجراءات</small><span>${n}</span></div></div><div class="card-info"><div class="info-cell"><small>تاريخ الإضافة</small><span>${dateLabel(p.createdAt)}</span></div><div class="info-cell"><small>المصدر</small><span>Local demo</span></div></div><div class="card-actions"><button class="button ghost" data-new-procedure="${p.id}">+ إجراء</button><button class="button secondary" data-patient-note="${p.id}">ملاحظة</button></div></article>`;}
@@ -42,23 +61,79 @@
   function bind(){rootClicks();const ps=$('#patientSearch');if(ps)ps.addEventListener('input',()=>{const q=ps.value.trim().toLowerCase();$('#patientCards').innerHTML=data.patients.filter(p=>(p.name+' '+p.record).toLowerCase().includes(q)).map(patientCard).join('')||empty('لا توجد نتائج');bindCardActions();});const qs=$('#procedureSearch');if(qs)qs.addEventListener('input',()=>{const q=qs.value.trim().toLowerCase();$('#procedureCards').innerHTML=data.procedures.filter(p=>((p.title+' '+p.doctor+' '+((patient(p.patientId)||{}).name||'')).toLowerCase().includes(q))).map(procedureCard).join('')||empty('لا توجد نتائج');bindCardActions();});const rs=$('#reportSearch');if(rs)rs.addEventListener('input',()=>{const q=rs.value.trim().toLowerCase();$('#reportCards').innerHTML=data.reports.filter(r=>(r.title+' '+r.body).toLowerCase().includes(q)).map(reportCard).join('')||empty('لا توجد نتائج');bindCardActions();});bindCardActions();}
   function rootClicks(){const root=$('#viewRoot');root.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));root.querySelectorAll('[data-open-patient]').forEach(b=>b.addEventListener('click',openPatient));root.querySelectorAll('[data-open-procedure]').forEach(b=>b.addEventListener('click',()=>openProcedure()));root.querySelectorAll('[data-open-media]').forEach(b=>b.addEventListener('click',openMedia));}
   document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
-  function bindCardActions(){document.querySelectorAll('[data-new-procedure]').forEach(b=>b.onclick=()=>openProcedure(b.dataset.newProcedure));document.querySelectorAll('[data-start]').forEach(b=>b.onclick=()=>transition(b.dataset.start,'in_progress'));document.querySelectorAll('[data-complete]').forEach(b=>b.onclick=()=>{const id=b.dataset.complete;transition(id,'completed');makeReport(id);});document.querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>{const id=b.dataset.report;if(!data.reports.some(r=>r.procedureId===id))makeReport(id);setView('reports');});document.querySelectorAll('[data-edit-report]').forEach(b=>b.onclick=()=>editReport(b.dataset.editReport));document.querySelectorAll('[data-delete-media]').forEach(b=>b.onclick=()=>{if(confirm('حذف الصورة التجريبية من التخزين المحلي؟')){data.media=data.media.filter(m=>m.id!==b.dataset.deleteMedia);save();render();}});document.querySelectorAll('[data-patient-note]').forEach(b=>b.onclick=()=>{const p=patient(b.dataset.patientNote);alert(`ملاحظة Demo: ${p?.note||'لا توجد ملاحظة.'}`);});}
-  function transition(id,status){const p=proc(id);if(!p)return;if(status==='in_progress'&&p.status!=='scheduled')return;if(status==='completed'&&p.status!=='in_progress')return;p.status=status;save();render();}
-  function makeReport(id){const p=proc(id);if(!p)return;const pt=patient(p.patientId);data.reports.unshift({id:'r-'+Date.now(),procedureId:id,title:`Demo report — ${p.title}`,status:'draft',body:`تقرير عرض تجريبي.\nالمريض: ${pt?.name||'Demo Patient'}\nالإجراء: ${p.title}\nالطبيب: ${p.doctor||'Demo User'}\n\nهذا المحتوى غير طبي ولا يحتوي على نتيجة فحص حقيقية.`,createdAt:today()});save();}
+  function bindCardActions(){document.querySelectorAll('[data-new-procedure]').forEach(b=>b.onclick=()=>openProcedure(b.dataset.newProcedure));document.querySelectorAll('[data-start]').forEach(b=>b.onclick=()=>transition(b.dataset.start,'in_progress'));document.querySelectorAll('[data-complete]').forEach(b=>b.onclick=()=>{const id=b.dataset.complete;if(transition(id,'completed'))makeReport(id);});document.querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>{const id=b.dataset.report;if(!data.reports.some(r=>r.procedureId===id))makeReport(id);setView('reports');});document.querySelectorAll('[data-edit-report]').forEach(b=>b.onclick=()=>editReport(b.dataset.editReport));document.querySelectorAll('[data-delete-media]').forEach(b=>b.onclick=()=>{if(confirm('حذف الصورة التجريبية من التخزين المحلي؟')){data.media=data.media.filter(m=>m.id!==b.dataset.deleteMedia);if(!save())return;render();}});document.querySelectorAll('[data-patient-note]').forEach(b=>b.onclick=()=>{const p=patient(b.dataset.patientNote);alert(`ملاحظة Demo: ${p?.note||'لا توجد ملاحظة.'}`);});}
+  function transition(id,status){const p=proc(id);if(!p)return;if(status==='in_progress'&&p.status!=='scheduled')return;if(status==='completed'&&p.status!=='in_progress')return;p.status=status;if(!save())return false;render();return true;}
+  function makeReport(id){const p=proc(id);if(!p)return;const pt=patient(p.patientId);data.reports.unshift({id:'r-'+Date.now(),procedureId:id,title:`Demo report — ${p.title}`,status:'draft',body:`تقرير عرض تجريبي.\nالمريض: ${pt?.name||'Demo Patient'}\nالإجراء: ${p.title}\nالطبيب: ${p.doctor||'Demo User'}\n\nهذا المحتوى غير طبي ولا يحتوي على نتيجة فحص حقيقية.`,createdAt:today()});return save();}
   function openPatient(){ $('#patientDialog').showModal(); }
   function openProcedure(preselect){const s=$('#procedurePatient');s.innerHTML=data.patients.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} — ${esc(p.record)}</option>`).join('');if(!data.patients.length){alert('أضف مريضًا تجريبيًا أولًا.');setView('patients');return;}if(preselect)s.value=preselect;$('#procedureDialog').showModal();}
-  $('#patientForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target);const name=String(f.get('name')||'').trim();if(!name)return;const record=String(f.get('record')||`DEMO-${String(data.patients.length+1).padStart(3,'0')}`).trim();if(data.patients.some(p=>p.record===record)){alert('رقم السجل التجريبي مستخدم بالفعل.');return;}data.patients.push({id:'p-'+Date.now(),name,record,age:f.get('age')?Number(f.get('age')):null,note:String(f.get('note')||''),createdAt:today()});save();e.target.reset();$('#patientDialog').close();render();});
-  $('#procedureForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target);const patientId=String(f.get('patientId'));const title=String(f.get('title')||'').trim();if(!patient(patientId)||!title)return;data.procedures.unshift({id:'pr-'+Date.now(),patientId,title,doctor:String(f.get('doctor')||'Demo User'),status:'scheduled',date:today()});save();e.target.reset();$('#procedureDialog').close();setView('procedures');});
-  $('#closePatient').onclick=$('#cancelPatient').onclick=()=>$('#patientDialog').close();$('#closeProcedure').onclick=$('#cancelProcedure').onclick=()=>$('#procedureDialog').close();$('#menuToggle').onclick=()=>$('#sidebar').classList.toggle('open');
+  $('#patientForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target);const name=String(f.get('name')||'').trim();if(!name)return;const record=String(f.get('record')||`DEMO-${String(data.patients.length+1).padStart(3,'0')}`).trim();if(data.patients.some(p=>p.record===record)){alert('رقم السجل التجريبي مستخدم بالفعل.');return;}data.patients.push({id:'p-'+Date.now(),name,record,age:f.get('age')?Number(f.get('age')):null,note:String(f.get('note')||''),createdAt:today()});if(!save())return;e.target.reset();$('#patientDialog').close();render();});
+  $('#procedureForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target);const patientId=String(f.get('patientId'));const title=String(f.get('title')||'').trim();if(!patient(patientId)||!title)return;data.procedures.unshift({id:'pr-'+Date.now(),patientId,title,doctor:String(f.get('doctor')||'Demo User'),status:'scheduled',date:today()});if(!save())return;e.target.reset();$('#procedureDialog').close();setView('procedures');});
+  $('#closePatient').onclick=$('#cancelPatient').onclick=()=>$('#patientDialog').close();$('#closeProcedure').onclick=$('#cancelProcedure').onclick=()=>$('#procedureDialog').close();$('#menuToggle').onclick=()=>{const open=$('#sidebar').classList.toggle('open');$('#menuToggle').setAttribute('aria-expanded',String(open));};
   function editReport(id){const r=data.reports.find(x=>x.id===id);if(!r)return;const f=$('#reportForm');f.elements.title.value=r.title||'';f.elements.body.value=r.body||'';f.elements.status.value=r.status||'draft';f.dataset.reportId=id;$('#reportDialog').showModal();}
   function openMedia(){const select=$('#mediaProcedure');select.innerHTML='<option value="">بدون إجراء مرتبط</option>'+data.procedures.map(p=>`<option value="${esc(p.id)}">${esc(p.title)} — ${esc((patient(p.patientId)||{}).name||'')}</option>`).join('');$('#mediaDialog').showModal();}
-  $('#reportForm').addEventListener('submit',e=>{e.preventDefault();const id=e.target.dataset.reportId;const r=data.reports.find(x=>x.id===id);if(!r)return;r.title=e.target.elements.title.value.trim();r.body=e.target.elements.body.value;r.status=e.target.elements.status.value;save();$('#reportDialog').close();render();});
+  $('#reportForm').addEventListener('submit',e=>{e.preventDefault();const id=e.target.dataset.reportId;const r=data.reports.find(x=>x.id===id);if(!r)return;r.title=e.target.elements.title.value.trim();r.body=e.target.elements.body.value;r.status=e.target.elements.status.value;if(!save())return;$('#reportDialog').close();render();});
   $('#closeReport').onclick=$('#cancelReport').onclick=()=>$('#reportDialog').close();
-  $('#mediaForm').addEventListener('submit',e=>{e.preventDefault();const file=e.target.elements.file.files[0];if(!file)return;if(file.size>2*1024*1024){alert('حجم الصورة أكبر من 2 ميجابايت.');return;}if(!file.type.startsWith('image/')){alert('الملف يجب أن يكون صورة.');return;}const reader=new FileReader();reader.onload=()=>{try{data.media.unshift({id:'media-'+Date.now(),procedureId:e.target.elements.procedureId.value||null,caption:e.target.elements.caption.value.trim(),dataUrl:reader.result,createdAt:today(),fileName:file.name});save();e.target.reset();$('#mediaDialog').close();setView('media');}catch(err){alert('تعذر حفظ الصورة: المساحة المحلية قد تكون ممتلئة.');}};reader.readAsDataURL(file);});
+  function detectDemoImageType(bytes){
+    if(bytes.length>=8&&bytes[0]===0x89&&bytes[1]===0x50&&bytes[2]===0x4e&&bytes[3]===0x47&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return 'image/png';
+    if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return 'image/jpeg';
+    if(bytes.length>=6&&bytes[0]===0x47&&bytes[1]===0x49&&bytes[2]===0x46&&bytes[3]===0x38&&(bytes[4]===0x37||bytes[4]===0x39)&&bytes[5]===0x61)return 'image/gif';
+    if(bytes.length>=12&&bytes[0]===0x52&&bytes[1]===0x49&&bytes[2]===0x46&&bytes[3]===0x46&&bytes[8]===0x57&&bytes[9]===0x45&&bytes[10]===0x42&&bytes[11]===0x50)return 'image/webp';
+    return null;
+  }
+  function isSafeDemoImageDataUrl(value){
+        return typeof value==='string'&&new RegExp('^data:image/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$').test(value)&&value.length<=3000000;
+  }
+  $('#mediaForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const file=e.target.elements.file.files[0];
+    if(!file)return;
+    if(file.size<=0||file.size>2*1024*1024){alert('حجم الصورة يجب أن يكون بين 1 بايت و2 ميجابايت.');return;}
+    file.arrayBuffer().then(buffer=>{
+      const detectedType=detectDemoImageType(new Uint8Array(buffer));
+      if(!detectedType){alert('نوع الصورة غير مدعوم أو أن محتوى الملف لا يطابق صورة PNG أو JPEG أو GIF أو WebP.');return;}
+      const reader=new FileReader();
+      reader.onload=()=>{
+        try{
+          const dataUrl=String(reader.result||'');
+          if(!isSafeDemoImageDataUrl(dataUrl)||!dataUrl.startsWith('data:'+detectedType+';base64,')){alert('تعذر التحقق من محتوى الصورة.');return;}
+          data.media.unshift({id:'media-'+Date.now(),procedureId:e.target.elements.procedureId.value||null,caption:e.target.elements.caption.value.trim(),dataUrl,createdAt:today(),fileName:file.name});
+          if(!save())return;
+          e.target.reset();$('#mediaDialog').close();setView('media');
+        }catch(err){alert('تعذر حفظ الصورة التجريبية محليًا.');}
+      };
+      reader.onerror=()=>alert('تعذرت قراءة ملف الصورة.');
+      reader.readAsDataURL(file);
+    }).catch(()=>alert('تعذرت قراءة ملف الصورة.'));
+  });
   $('#closeMedia').onclick=$('#cancelMedia').onclick=()=>$('#mediaDialog').close();
-  $('#exportData').onclick=()=>{const blob=new Blob([JSON.stringify({...data,exportedAt:new Date().toISOString(),exportType:'SCOPX.I.E DEMO ONLY'},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='scopx-demo-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+  $('#exportData').onclick=()=>{const payload=JSON.stringify({...data,schemaVersion:1,exportedAt:new Date().toISOString(),exportType:'SCOPX.I.E DEMO ONLY'},null,2);const blob=new Blob([payload],{type:'application/json'});if(blob.size>MAX_DEMO_BACKUP_BYTES){alert('Backup exceeds the 10 MiB limit. Remove some large media items and try again.');return;}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='scopx-demo-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+  function isValidDemoBackup(value){
+    const isObject=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+    const isText=(v,max)=>typeof v==='string'&&v.length>0&&v.length<=max;
+    if(!isObject(value)||![undefined,1].includes(value.schemaVersion)||!Array.isArray(value.patients)||!Array.isArray(value.procedures)||!Array.isArray(value.reports))return false;
+    const media=Array.isArray(value.media)?value.media:[];
+    const {patients,procedures,reports}=value;
+    if(patients.length>500||procedures.length>2000||reports.length>2000||media.length>500)return false;
+    const uniqueIds=items=>items.every((item,index)=>isObject(item)&&isText(item.id,100)&&items.findIndex(other=>other.id===item.id)===index);
+    if(!uniqueIds(patients)||!uniqueIds(procedures)||!uniqueIds(reports)||!uniqueIds(media))return false;
+    const patientIds=new Set(patients.map(item=>item.id));
+    const procedureIds=new Set(procedures.map(item=>item.id));
+    if(!patients.every(p=>isText(p.name,80)&&isText(p.record,30)&&(p.age===null||p.age===undefined||(Number.isInteger(p.age)&&p.age>=0&&p.age<=120))&&(p.note===undefined||typeof p.note==='string'&&p.note.length<=250)))return false;
+    if(!procedures.every(p=>patientIds.has(p.patientId)&&isText(p.title,80)&&(p.doctor===undefined||typeof p.doctor==='string'&&p.doctor.length<=80)&&['scheduled','in_progress','completed'].includes(p.status)))return false;
+    if(!reports.every(r=>procedureIds.has(r.procedureId)&&isText(r.title,120)&&['draft','review'].includes(r.status)&&typeof r.body==='string'&&r.body.length<=4000))return false;
+    if(!media.every(m=>(m.procedureId===null||m.procedureId===undefined||procedureIds.has(m.procedureId))&&isSafeDemoImageDataUrl(m.dataUrl)&&(m.caption===undefined||typeof m.caption==='string'&&m.caption.length<=100)))return false;
+    return true;
+  }
   $('#importData').onclick=()=>$('#importFile').click();
-  $('#importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const incoming=JSON.parse(await file.text());if(!Array.isArray(incoming.patients)||!Array.isArray(incoming.procedures)||!Array.isArray(incoming.reports))throw new Error('ملف غير متوافق');if(!confirm('سيتم استبدال بيانات العرض المحلية الحالية. هل تريد المتابعة؟'))return;data={patients:incoming.patients,procedures:incoming.procedures,reports:incoming.reports,media:Array.isArray(incoming.media)?incoming.media:[]};save();setView('dashboard');alert('تم استيراد بيانات العرض.');}catch(err){alert('فشل الاستيراد: الملف غير صالح أو غير متوافق.');}e.target.value='';});
+  $('#resetDemoData').onclick=()=>{
+    if(!confirm('سيتم حذف سجلات العرض المحلية وإعادتها إلى البيانات التجريبية الافتراضية. هل تريد المتابعة؟'))return;
+    const previous=data;
+    data=structuredClone(demoSeed);
+    if(!save()){data=previous;return;}
+    setView('dashboard');
+    alert('تمت إعادة بيانات العرض التجريبية.');
+  };
+  $('#importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size<=0||file.size>MAX_DEMO_BACKUP_BYTES)throw new Error('Backup file size is outside the allowed limit');const incoming=JSON.parse(await file.text());if(!isValidDemoBackup(incoming))throw new Error('ملف غير متوافق');if(!confirm('سيتم استبدال بيانات العرض المحلية الحالية. هل تريد المتابعة؟'))return;data={patients:incoming.patients,procedures:incoming.procedures,reports:incoming.reports,media:Array.isArray(incoming.media)?incoming.media:[]};if(!save())return;setView('dashboard');alert('تم استيراد بيانات العرض.');}catch(err){alert('فشل الاستيراد: الملف غير صالح أو غير متوافق.');}e.target.value='';});
   render();
   if('serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();

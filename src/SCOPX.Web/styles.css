@@ -4,3 +4,5 @@
 
 .media-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.media-card{overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--panel)}.media-card img{width:100%;aspect-ratio:4/3;object-fit:contain;background:#04101b}.media-card .media-caption{padding:10px;color:var(--muted);font-size:11px}.media-card .media-caption strong{display:block;color:var(--text);margin-bottom:4px}.report-preview{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:760px){.media-grid{grid-template-columns:1fr 1fr}.top-actions{gap:5px}.top-actions .button{padding:8px 9px;font-size:10px}}
+.skip-link{position:fixed;top:8px;right:8px;z-index:1000;transform:translateY(-160%);background:#e6f2f8;color:#06111d;padding:12px 16px;border-radius:9px;font-weight:700;text-decoration:none;box-shadow:0 4px 18px #0008}.skip-link:focus{transform:translateY(0);outline:3px solid var(--cyan);outline-offset:3px}
+.nav-item:focus-visible,.button:focus-visible,.mobile-menu:focus-visible,.quick-action:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}

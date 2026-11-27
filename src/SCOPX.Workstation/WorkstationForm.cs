@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Diagnostics;
 
 namespace SCOPX.Workstation;
 
@@ -7,6 +8,7 @@ public sealed class WorkstationForm : Form
     private readonly TextBox _apiUrl = new() { Text = "http://localhost:5000", Width = 360 };
     private readonly Label _status = new() { Text = "Not connected", AutoSize = true, ForeColor = Color.DarkOrange };
     private readonly Button _check = new() { Text = "Check API", AutoSize = true };
+    private readonly Button _openDemo = new() { Text = "Open Offline Demo", AutoSize = true };
     private readonly Label _warning = new() { Text = "DEVELOPMENT SHELL — NOT FOR CLINICAL USE OR REAL PATIENT DATA", AutoSize = true, ForeColor = Color.Firebrick, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
 
     public WorkstationForm()
@@ -30,9 +32,11 @@ public sealed class WorkstationForm : Form
         var urlLabel = new Label { Text = "Server URL", AutoSize = true, ForeColor = Color.LightSteelBlue, Location = new Point(22, 62) };
         _apiUrl.Location = new Point(22, 88); _apiUrl.BackColor = Color.FromArgb(10, 18, 32); _apiUrl.ForeColor = Color.White; _apiUrl.BorderStyle = BorderStyle.FixedSingle;
         _check.Location = new Point(398, 86); _check.BackColor = Color.FromArgb(0, 150, 200); _check.ForeColor = Color.White; _check.FlatStyle = FlatStyle.Flat;
+        _openDemo.Location = new Point(520, 86); _openDemo.BackColor = Color.FromArgb(34, 145, 115); _openDemo.ForeColor = Color.White; _openDemo.FlatStyle = FlatStyle.Flat;
         _status.Location = new Point(22, 125);
         _check.Click += async (_, _) => await CheckApiAsync();
-        connectionCard.Controls.Add(title); connectionCard.Controls.Add(urlLabel); connectionCard.Controls.Add(_apiUrl); connectionCard.Controls.Add(_check); connectionCard.Controls.Add(_status);
+        _openDemo.Click += (_, _) => OpenOfflineDemo();
+        connectionCard.Controls.Add(title); connectionCard.Controls.Add(urlLabel); connectionCard.Controls.Add(_apiUrl); connectionCard.Controls.Add(_check); connectionCard.Controls.Add(_openDemo); connectionCard.Controls.Add(_status);
 
         var featurePanel = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 250, Padding = new Padding(0, 24, 0, 0), FlowDirection = FlowDirection.LeftToRight, WrapContents = true };
         featurePanel.Controls.Add(FeatureCard("Patients", "Patient management UI — not connected", "patients"));
@@ -53,19 +57,41 @@ public sealed class WorkstationForm : Form
         card.Controls.Add(h); card.Controls.Add(d); return card;
     }
 
+
+    private void OpenOfflineDemo()
+    {
+        var demoPath = Path.Combine(AppContext.BaseDirectory, "DemoWeb", "index.html");
+        if (!File.Exists(demoPath))
+        {
+            MessageBox.Show("Offline demo files were not found beside the workstation app.", "SCOPX.I.E Demo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = demoPath, UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            MessageBox.Show("Could not open the offline demo in the default browser.", "SCOPX.I.E Demo", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     private async Task CheckApiAsync()
     {
-        if (!Uri.TryCreate(_apiUrl.Text.Trim(), UriKind.Absolute, out var baseUri) || (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
+        if (!Uri.TryCreate(_apiUrl.Text.Trim(), UriKind.Absolute, out var baseUri) || !ApiEndpointPolicy.IsAllowedBaseUri(baseUri))
         {
-            _status.Text = "Invalid server URL"; _status.ForeColor = Color.OrangeRed; return;
+            _status.Text = "Use HTTPS for remote servers; HTTP is allowed only on this computer.";
+            _status.ForeColor = Color.OrangeRed;
+            return;
         }
         _check.Enabled = false; _status.Text = "Checking..."; _status.ForeColor = Color.Gold;
         try
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-            var healthUri = new Uri(baseUri.ToString().TrimEnd('/') + "/health");
+            var healthUri = new Uri(baseUri.ToString().TrimEnd('/') + "/health/ready");
             using var response = await client.GetAsync(healthUri);
-            _status.Text = response.IsSuccessStatusCode ? $"API reachable ({(int)response.StatusCode}) — health only" : $"API response: {(int)response.StatusCode}";
+            _status.Text = response.IsSuccessStatusCode ? $"API and database reachable ({(int)response.StatusCode}) — connectivity only" : $"Readiness response: {(int)response.StatusCode}";
             _status.ForeColor = response.IsSuccessStatusCode ? Color.LightGreen : Color.OrangeRed;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

@@ -1,0 +1,265 @@
+name: SCOPX build validation
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, "fix/**" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build API and Windows workstation
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore API
+        run: dotnet restore src/SCOPX.Api/SCOPX.Api.csproj
+
+      - name: Build API
+        run: dotnet build src/SCOPX.Api/SCOPX.Api.csproj --no-restore --configuration Release
+
+      - name: Build development bootstrap tool
+        run: dotnet build src/SCOPX.Bootstrap/SCOPX.Bootstrap.csproj --configuration Release
+
+      - name: Build report-signing security tests
+        run: dotnet build src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release
+
+      - name: Run API authentication and cryptography security regression tests
+        run: dotnet run --project src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release --no-build
+
+      - name: Build Windows workstation
+        run: dotnet build src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release
+
+      - name: Publish unsigned Windows x64 preview
+        run: dotnet publish src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false --output artifacts/SCOPX.Workstation-win-x64
+
+      - name: Verify bundled offline demo in Windows publish output
+        shell: pwsh
+        run: |
+          $required = @(
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/index.html",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/app.js",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/styles.css",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/sw.js",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/manifest.webmanifest",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/assets/icon.svg"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file -PathType Leaf)) { throw "Missing bundled demo asset: $file" }
+          }
+          Write-Host "Windows preview includes the complete offline web demo shell."
+
+      - name: Upload Windows workstation preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCOPX.Workstation-win-x64-preview
+          path: artifacts/SCOPX.Workstation-win-x64/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install Python for structural checks
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Run offline structural checks
+        run: python scripts/tests/validate_project.py
+
+      - name: Parse Windows PowerShell scripts
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem "scripts/windows" -Filter "*.ps1" -File
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$($file.Name): $($_.Message)" }
+              throw "PowerShell parse failed for $($file.Name)"
+            }
+          }
+          Write-Host "All Windows PowerShell scripts parse successfully."
+
+      - name: Verify SQL migration files exist
+        shell: pwsh
+        run: |
+          $required = @(
+            "src/SCOPX.Infrastructure/Database/Migrations/001_identity_tenancy.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/002_patient_procedure_records.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/003_platform_roles_licensing.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/004_tenant_rls_policies.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/005_user_authentication.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/006_user_sessions.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/007_audit_immutability_hardening.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/008_role_scope_enforcement.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/009_hospital_directory_rls.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/010_report_versioning_signatures.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/011_media_retention_lifecycle.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/012_media_retention_invariant_hardening.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/013_media_retention_deadline_stamping.sql",
+            "src/SCOPX.Infrastructure/Database/Migrations/014_media_deletion_requests.sql"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "Missing migration: $file" }
+          }
+          Write-Host "All required migrations are present."
+  android-preview:
+    name: Build Android debug APK preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Install Android SDK platform and build tools
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Run Android API endpoint policy unit tests
+        run: gradle --no-daemon -p src/SCOPX.Android testDebugUnitTest
+
+      - name: Build Android debug APK
+        run: gradle --no-daemon -p src/SCOPX.Android assembleDebug
+
+      - name: Verify bundled web demo assets inside Android APK
+        run: |
+          python - <<'PY'
+          import zipfile
+          apk = "src/SCOPX.Android/app/build/outputs/apk/debug/app-debug.apk"
+          required = {
+              "assets/scopx/index.html",
+              "assets/scopx/styles.css",
+              "assets/scopx/app.js",
+              "assets/scopx/manifest.webmanifest",
+              "assets/scopx/sw.js",
+              "assets/scopx/assets/icon.svg",
+          }
+          with zipfile.ZipFile(apk) as archive:
+              actual = set(archive.namelist())
+          missing = sorted(required - actual)
+          if missing:
+              raise SystemExit("APK missing bundled demo assets: " + ", ".join(missing))
+          print("Android APK contains all six offline demo runtime assets.")
+          PY
+
+      - name: Upload Android debug APK preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCOPX.Android-debug-preview
+          path: src/SCOPX.Android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  pwa-demo-smoke:
+    name: Browser acceptance tests for offline web demo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: python -m pip install playwright==1.55.0
+
+      - name: Install Chromium and system dependencies
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run offline PWA and browser acceptance tests
+        env:
+          SCOPX_REQUIRE_BROWSER: "1"
+        run: python scripts/tests/pwa_smoke_test.py
+
+  postgres-security-smoke:
+    name: PostgreSQL migrations, grants, and RLS smoke test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: scopx_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d scopx_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGDATABASE: scopx_dev
+      PGUSER: postgres
+      PGPASSWORD: ci-only-password
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Apply all reviewed draft migrations to disposable CI database
+        run: python scripts/database/Apply-Migrations.py --include-rls-draft --include-auth-draft --include-audit-hardening-draft --include-tenant-hardening-draft --include-report-signing-draft --include-retention-draft --include-retention-hardening-draft --include-retention-stamping-draft --include-media-deletion-requests-draft
+
+      - name: Create least-privilege runtime role
+        run: psql --no-psqlrc --set ON_ERROR_STOP=1 --command "CREATE ROLE scopx_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD 'ci-only-password';"
+
+      - name: Apply runtime grants
+        run: psql --no-psqlrc --set ON_ERROR_STOP=1 --file scripts/database/Grant-RuntimePrivileges.sql
+
+      - name: Validate runtime grants and RLS configuration
+        run: psql --no-psqlrc --set ON_ERROR_STOP=1 --file scripts/database/Validate-RuntimePrivileges.sql
+
+      - name: Test cross-tenant isolation, role scope, and audit immutability
+        run: psql --no-psqlrc --set ON_ERROR_STOP=1 --file scripts/tests/tenant-rls-ci-smoke.sql
+
+      - name: Install .NET 10 SDK for PostgreSQL-backed API integration tests
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build API security integration test host
+        run: dotnet build src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release
+
+      - name: Run HTTP integration tests with the least-privilege PostgreSQL role
+        env:
+          SCOPX_TEST_DB_RUNTIME_CONNECTION: "Host=localhost;Port=5432;Database=scopx_dev;Username=scopx_runtime;Password=ci-only-password"
+          SCOPX_TEST_DB_OWNER_CONNECTION: "Host=localhost;Port=5432;Database=scopx_dev;Username=postgres;Password=ci-only-password"
+        run: dotnet run --project src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj --configuration Release --no-build

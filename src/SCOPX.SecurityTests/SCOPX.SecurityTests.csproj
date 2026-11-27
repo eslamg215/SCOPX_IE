@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../SCOPX.Workstation/Recording/RecordingLifecyclePolicy.cs" Link="RecordingLifecyclePolicy.cs" />
+    <Compile Include="../SCOPX.Workstation/Devices/DeviceCaptureContracts.cs" Link="DeviceCaptureContracts.cs" />
+    <Compile Include="../SCOPX.Workstation/Devices/CaptureDeviceDescriptorPolicy.cs" Link="CaptureDeviceDescriptorPolicy.cs" />
+    <Compile Include="../SCOPX.Workstation/Devices/CaptureStartOptionsPolicy.cs" Link="CaptureStartOptionsPolicy.cs" />
+    <Compile Include="../SCOPX.Workstation/Devices/ValidatedCaptureAdapter.cs" Link="ValidatedCaptureAdapter.cs" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\SCOPX.Api\SCOPX.Api.csproj" />
+  </ItemGroup>
+</Project>

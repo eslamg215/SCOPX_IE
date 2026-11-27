@@ -5,74 +5,41 @@ using SCOPX.Infrastructure.Users;
 using SCOPX.Infrastructure.Sessions;
 using SCOPX.Infrastructure.Hospitals;
 using SCOPX.Api.Tenancy;
-using SCOPX.Api.Patients;
-using SCOPX.Infrastructure.Patients;
-using SCOPX.Api.Procedures;
-using SCOPX.Infrastructure.Procedures;
-using SCOPX.Api.Reports;
-using SCOPX.Infrastructure.Reports;
-using SCOPX.Infrastructure.Media;
 using SCOPX.Api.Media;
-using SCOPX.Api.PlatformAdmin;
+using SCOPX.Api.Reports;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 60 * 1024 * 1024);
 
-// Defensive defaults for the development API scaffold. Authentication and clinical
-// storage are deliberately not wired; this service must not receive real PHI yet.
+// Development-only API scaffold. Authentication and hospital membership lookup
+// are enabled when configured; clinical and platform routes remain deliberately disabled.
+// Never connect this scaffold to real patient data.
 builder.Services.AddHealthChecks();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = 60 * 1024 * 1024);
 builder.Services.AddScoped<IPasswordHasher<AuthUser>, PasswordHasher<AuthUser>>();
 builder.Services.AddScoped<PasswordHashService>();
+// Media routes are intentionally not mapped. The encryption service is ready for
+// the protected pipeline; uploads remain fail-closed until a real scanner is installed.
+builder.Services.AddSingleton<MediaContentProtector>();
+builder.Services.AddSingleton<IMediaMalwareScanner, ClamAvMediaMalwareScanner>();
+builder.Services.AddSingleton<ReportSigningService>();
 var databaseConnection = builder.Configuration.GetConnectionString("ScopxDb");
 if (!string.IsNullOrWhiteSpace(databaseConnection))
 {
     builder.Services.AddScoped<IUserRepository>(_ => new NpgsqlUserRepository(databaseConnection));
     builder.Services.AddScoped<ISessionRepository>(_ => new NpgsqlSessionRepository(databaseConnection));
     builder.Services.AddScoped<IHospitalMembershipRepository>(_ => new NpgsqlHospitalMembershipRepository(databaseConnection));
-    builder.Services.AddScoped<IPatientRepository>(_ => new NpgsqlPatientRepository(databaseConnection));
-    builder.Services.AddScoped<IProcedureRepository>(_ => new NpgsqlProcedureRepository(databaseConnection));
-    builder.Services.AddScoped<IReportRepository>(_ => new NpgsqlReportRepository(databaseConnection));
-    builder.Services.AddScoped<IMediaRepository>(_ => new NpgsqlMediaRepository(databaseConnection));
 }
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("api", limiter =>
-    {
-        limiter.PermitLimit = 120;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
-        limiter.AutoReplenishment = true;
-    });
-});
+builder.Services.AddScopxRateLimiting();
+builder.Services.AddScopxCors(builder.Configuration);
 
 var app = builder.Build();
-app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
-{
-    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-    context.Response.ContentType = "application/json";
-    await context.Response.WriteAsJsonAsync(new { error = "internal_error", message = "An unexpected error occurred." });
-}));
+app.UseScopxExceptionHandling();
+app.UseScopxSecurityHeaders();
+app.UseCors("scopx");
 app.UseRateLimiter();
-app.Use(async (context, next) =>
-{
-    // Accept a caller correlation ID only if it is short and safe; otherwise generate one.
-    var incoming = context.Request.Headers["X-Correlation-ID"].ToString();
-    var correlationId = incoming.Length is > 0 and <= 64 && incoming.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_')
-        ? incoming
-        : Guid.NewGuid().ToString("N");
-    context.TraceIdentifier = correlationId;
-    context.Response.Headers["X-Correlation-ID"] = correlationId;
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["X-Frame-Options"] = "DENY";
-    context.Response.Headers["Referrer-Policy"] = "no-referrer";
-    context.Response.Headers["Cache-Control"] = "no-store";
-    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
-    await next();
-});
 
 app.MapGet("/", () => Results.Ok(new
 {
@@ -91,21 +58,49 @@ app.MapGet("/api/v1/system", () => Results.Ok(new
     apiVersion = "v1",
     environment = app.Environment.EnvironmentName,
     status = "scaffold",
-    features = new[] { "health-check", "system-metadata", "rate-limiting", "security-headers", "correlation-id", "password-hash-helper" }
+    features = new[] { "health-check", "system-metadata", "rate-limiting", "security-headers", "correlation-id", "password-hash-helper", "authentication", "hospital-membership-context" },
+    clinicalApiEnabled = false,
+    platformAdminApiEnabled = false,
+    note = "Clinical and platform administration routes are withheld until audit logging and separate privileged access are implemented and tested."
 })).RequireRateLimiting("api");
 
-// The patient endpoint is intentionally not created until auth, tenant isolation,
-// database connectivity, audit, and validation are tested together.
-app.MapHealthChecks("/health").RequireRateLimiting("api");
+// Clinical and platform-administration routes remain deliberately disabled.
+// They must not be exposed until append-only audit recording is wired into every
+// sensitive operation and platform administration uses a separately restricted
+// connection with independently tested authorization.
+app.MapHealthChecks("/health");
+
+// Readiness is distinct from liveness: this probe verifies only that the configured
+// PostgreSQL connection can open and execute SELECT 1. It does not validate schema,
+// migrations, tenant policies, or clinical workflows.
+app.MapGet("/health/ready", async (CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(databaseConnection))
+        return Results.Json(new { status = "not_ready", database = "not_configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+
+    try
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(databaseConnection);
+        await connection.OpenAsync(ct);
+        await using var command = new Npgsql.NpgsqlCommand("SELECT 1", connection);
+        await command.ExecuteScalarAsync(ct);
+        return Results.Ok(new { status = "ready", database = "reachable" });
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+    {
+        throw;
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning("Database readiness probe failed ({ExceptionType}).", ex.GetType().Name);
+        return Results.Json(new { status = "not_ready", database = "unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
 if (!string.IsNullOrWhiteSpace(databaseConnection))
 {
     app.MapAuthEndpoints();
     app.MapHospitalContextEndpoints();
-    app.MapPatientEndpoints();
-    app.MapProcedureEndpoints();
-    app.MapReportEndpoints();
-    app.MapMediaEndpoints();
-    app.MapPlatformAdminEndpoints(databaseConnection);
 }
 else
 {

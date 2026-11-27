@@ -1,5 +1,6 @@
 using Npgsql;
 using NpgsqlTypes;
+using SCOPX.Infrastructure.Audit;
 
 namespace SCOPX.Infrastructure.Patients;
 
@@ -14,7 +15,7 @@ public sealed class NpgsqlPatientRepository(string connectionString) : IPatientR
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    public async Task<IReadOnlyList<PatientListItem>> SearchAsync(Guid hospitalId, string? query, int limit, int offset, CancellationToken ct = default)
+    public async Task<IReadOnlyList<PatientListItem>> SearchAsync(Guid hospitalId, Guid actorUserId, string? query, int limit, int offset, CancellationToken ct = default)
     {
         const string sql = @"SELECT id, patient_code, full_name, date_of_birth, sex_at_birth, contact_phone, status, created_at
 FROM patients WHERE hospital_id=@hospital AND status='active'
@@ -30,10 +31,12 @@ ORDER BY full_name, id LIMIT @limit OFFSET @offset";
         cmd.Parameters.AddWithValue("offset", NpgsqlDbType.Integer, offset);
         await using var rd = await cmd.ExecuteReaderAsync(ct); var rows = new List<PatientListItem>();
         while (await rd.ReadAsync(ct)) rows.Add(new(rd.GetGuid(0), rd.GetString(1), rd.GetString(2), rd.IsDBNull(3)?null:DateOnly.FromDateTime(rd.GetDateTime(3)), rd.IsDBNull(4)?null:rd.GetString(4), rd.IsDBNull(5)?null:rd.GetString(5), rd.GetString(6), rd.GetFieldValue<DateTimeOffset>(7)));
+        await rd.CloseAsync();
+        await NpgsqlAuditEventWriter.WriteAsync(c, tx, hospitalId, actorUserId, "patient.listed", "patient_collection", hospitalId, new { result_count = rows.Count }, ct);
         await tx.CommitAsync(ct); return rows;
     }
 
-    public async Task<PatientRecord?> GetAsync(Guid hospitalId, Guid patientId, CancellationToken ct = default)
+    public async Task<PatientRecord?> GetAsync(Guid hospitalId, Guid actorUserId, Guid patientId, CancellationToken ct = default)
     {
         const string sql = @"SELECT id,hospital_id,patient_code,full_name,date_of_birth,sex_at_birth,contact_phone,notes,status,created_at,updated_at,archived_at
 FROM patients WHERE hospital_id=@hospital AND id=@id LIMIT 1";
@@ -42,10 +45,12 @@ FROM patients WHERE hospital_id=@hospital AND id=@id LIMIT 1";
         await using var cmd = new NpgsqlCommand(sql,c,tx); cmd.Parameters.AddWithValue("hospital",hospitalId); cmd.Parameters.AddWithValue("id",patientId);
         await using var rd = await cmd.ExecuteReaderAsync(ct); PatientRecord? p=null;
         if(await rd.ReadAsync(ct)) p=new(rd.GetGuid(0),rd.GetGuid(1),rd.GetString(2),rd.GetString(3),rd.IsDBNull(4)?null:DateOnly.FromDateTime(rd.GetDateTime(4)),rd.IsDBNull(5)?null:rd.GetString(5),rd.IsDBNull(6)?null:rd.GetString(6),rd.IsDBNull(7)?null:rd.GetString(7),rd.GetString(8),rd.GetFieldValue<DateTimeOffset>(9),rd.GetFieldValue<DateTimeOffset>(10),rd.IsDBNull(11)?null:rd.GetFieldValue<DateTimeOffset>(11));
+        await rd.CloseAsync();
+        await NpgsqlAuditEventWriter.WriteAsync(c, tx, hospitalId, actorUserId, "patient.read", "patient", patientId, new { found = p is not null }, ct);
         await tx.CommitAsync(ct); return p;
     }
 
-    public async Task<PatientRecord?> CreateAsync(Guid hospitalId, PatientCreateRequest input, CancellationToken ct = default)
+    public async Task<PatientRecord?> CreateAsync(Guid hospitalId, Guid actorUserId, PatientCreateRequest input, CancellationToken ct = default)
     {
         const string sql = @"INSERT INTO patients(hospital_id,patient_code,full_name,date_of_birth,sex_at_birth,contact_phone,notes)
 VALUES(@hospital,@code,@name,@dob,@sex,@phone,@notes) RETURNING id";
@@ -55,25 +60,31 @@ VALUES(@hospital,@code,@name,@dob,@sex,@phone,@notes) RETURNING id";
         cmd.Parameters.AddWithValue("hospital",hospitalId); cmd.Parameters.AddWithValue("code",input.PatientCode.Trim()); cmd.Parameters.AddWithValue("name",input.FullName.Trim());
         cmd.Parameters.AddWithValue("dob",NpgsqlDbType.Date,(object?)input.DateOfBirth ?? DBNull.Value); cmd.Parameters.AddWithValue("sex",NpgsqlDbType.Varchar,(object?)input.SexAtBirth ?? DBNull.Value);
         cmd.Parameters.AddWithValue("phone",NpgsqlDbType.Varchar,(object?)input.ContactPhone ?? DBNull.Value); cmd.Parameters.AddWithValue("notes",NpgsqlDbType.Text,(object?)input.Notes ?? DBNull.Value);
-        var id=(Guid)(await cmd.ExecuteScalarAsync(ct) ?? throw new InvalidOperationException("Patient insert did not return ID")); await tx.CommitAsync(ct);
-        return await GetAsync(hospitalId,id,ct);
+        var id=(Guid)(await cmd.ExecuteScalarAsync(ct) ?? throw new InvalidOperationException("Patient insert did not return ID"));
+        await NpgsqlAuditEventWriter.WriteAsync(c, tx, hospitalId, actorUserId, "patient.created", "patient", id, new { operation = "create" }, ct);
+        await tx.CommitAsync(ct);
+        return await GetAsync(hospitalId,actorUserId,id,ct);
     }
 
-    public async Task<bool> UpdateAsync(Guid hospitalId, Guid patientId, PatientUpdateRequest input, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Guid hospitalId, Guid actorUserId, Guid patientId, PatientUpdateRequest input, CancellationToken ct = default)
     {
         const string sql = @"UPDATE patients SET full_name=@name,date_of_birth=@dob,sex_at_birth=@sex,contact_phone=@phone,notes=@notes,updated_at=now()
 WHERE hospital_id=@hospital AND id=@id AND status='active'";
         await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var tx=await c.BeginTransactionAsync(ct); await SetTenantAsync(c,tx,hospitalId,ct);
         await using var cmd=new NpgsqlCommand(sql,c,tx); cmd.Parameters.AddWithValue("hospital",hospitalId); cmd.Parameters.AddWithValue("id",patientId); cmd.Parameters.AddWithValue("name",input.FullName.Trim());
         cmd.Parameters.AddWithValue("dob",NpgsqlDbType.Date,(object?)input.DateOfBirth ?? DBNull.Value); cmd.Parameters.AddWithValue("sex",NpgsqlDbType.Varchar,(object?)input.SexAtBirth ?? DBNull.Value); cmd.Parameters.AddWithValue("phone",NpgsqlDbType.Varchar,(object?)input.ContactPhone ?? DBNull.Value); cmd.Parameters.AddWithValue("notes",NpgsqlDbType.Text,(object?)input.Notes ?? DBNull.Value);
-        var count=await cmd.ExecuteNonQueryAsync(ct); await tx.CommitAsync(ct); return count==1;
+        var count=await cmd.ExecuteNonQueryAsync(ct);
+        if (count == 1) await NpgsqlAuditEventWriter.WriteAsync(c, tx, hospitalId, actorUserId, "patient.updated", "patient", patientId, new { operation = "update" }, ct);
+        await tx.CommitAsync(ct); return count==1;
     }
 
-    public async Task<bool> ArchiveAsync(Guid hospitalId, Guid patientId, CancellationToken ct = default)
+    public async Task<bool> ArchiveAsync(Guid hospitalId, Guid actorUserId, Guid patientId, CancellationToken ct = default)
     {
         const string sql="UPDATE patients SET status='archived',archived_at=now(),updated_at=now() WHERE hospital_id=@hospital AND id=@id AND status='active'";
         await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var tx=await c.BeginTransactionAsync(ct); await SetTenantAsync(c,tx,hospitalId,ct);
         await using var cmd=new NpgsqlCommand(sql,c,tx); cmd.Parameters.AddWithValue("hospital",hospitalId); cmd.Parameters.AddWithValue("id",patientId);
-        var count=await cmd.ExecuteNonQueryAsync(ct); await tx.CommitAsync(ct); return count==1;
+        var count=await cmd.ExecuteNonQueryAsync(ct);
+        if (count == 1) await NpgsqlAuditEventWriter.WriteAsync(c, tx, hospitalId, actorUserId, "patient.archived", "patient", patientId, new { operation = "archive" }, ct);
+        await tx.CommitAsync(ct); return count==1;
     }
 }

@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-scopx_dev}
       POSTGRES_USER: ${POSTGRES_USER:-scopx_local}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_only_change_me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the untracked .env file before starting PostgreSQL}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:

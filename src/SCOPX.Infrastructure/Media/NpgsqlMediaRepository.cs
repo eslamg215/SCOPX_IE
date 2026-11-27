@@ -1,15 +1,37 @@
 using Npgsql;
+using SCOPX.Infrastructure.Audit;
 namespace SCOPX.Infrastructure.Media;
 public sealed class NpgsqlMediaRepository(string connectionString) : IMediaRepository
 {
  public async Task<bool> ProcedureExistsAsync(Guid hospitalId, Guid procedureId, CancellationToken ct)
  { await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var t=await c.BeginTransactionAsync(ct); await SetTenant(c,t,hospitalId,ct); await using var cmd=new NpgsqlCommand("SELECT EXISTS(SELECT 1 FROM procedures WHERE hospital_id=@h AND id=@p)",c,t); cmd.Parameters.AddWithValue("h",hospitalId); cmd.Parameters.AddWithValue("p",procedureId); var exists=(bool)(await cmd.ExecuteScalarAsync(ct)??false); await t.CommitAsync(ct); return exists; }
- public async Task<MediaAssetRecord?> CreateAsync(MediaUploadMetadata m,CancellationToken ct)
- { await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var t=await c.BeginTransactionAsync(ct); await SetTenant(c,t,m.HospitalId,ct); await using var cmd=new NpgsqlCommand("INSERT INTO media_assets(hospital_id,procedure_id,media_type,storage_key,file_name,content_type,file_size_bytes,sha256_hex) VALUES(@h,@p,@type,@key,@name,@ct,@size,@sha) RETURNING id,procedure_id,media_type,file_name,content_type,file_size_bytes,sha256_hex,created_at",c,t); cmd.Parameters.AddWithValue("h",m.HospitalId);cmd.Parameters.AddWithValue("p",m.ProcedureId);cmd.Parameters.AddWithValue("type",m.MediaType);cmd.Parameters.AddWithValue("key",m.StorageKey);cmd.Parameters.AddWithValue("name",m.FileName);cmd.Parameters.AddWithValue("ct",m.ContentType);cmd.Parameters.AddWithValue("size",m.SizeBytes);cmd.Parameters.AddWithValue("sha",m.Sha256Hex); await using var r=await cmd.ExecuteReaderAsync(ct); MediaAssetRecord? row=null; if(await r.ReadAsync(ct))row=Read(r); await r.CloseAsync(); await t.CommitAsync(ct); return row; }
- public async Task<IReadOnlyList<MediaAssetRecord>> ListForProcedureAsync(Guid hospitalId,Guid procedureId,CancellationToken ct)
- { var rows=new List<MediaAssetRecord>(); await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var t=await c.BeginTransactionAsync(ct); await SetTenant(c,t,hospitalId,ct); await using var cmd=new NpgsqlCommand("SELECT id,procedure_id,media_type,file_name,content_type,file_size_bytes,sha256_hex,created_at FROM media_assets WHERE hospital_id=@h AND procedure_id=@p ORDER BY created_at DESC LIMIT 500",c,t);cmd.Parameters.AddWithValue("h",hospitalId);cmd.Parameters.AddWithValue("p",procedureId); await using var r=await cmd.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct))rows.Add(Read(r)); await t.CommitAsync(ct); return rows; }
- public async Task<(MediaAssetRecord? Asset,string? StorageKey)> FindAsync(Guid hospitalId,Guid mediaId,CancellationToken ct)
- { await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var t=await c.BeginTransactionAsync(ct); await SetTenant(c,t,hospitalId,ct); await using var cmd=new NpgsqlCommand("SELECT id,procedure_id,media_type,file_name,content_type,file_size_bytes,sha256_hex,created_at,storage_key FROM media_assets WHERE hospital_id=@h AND id=@id",c,t);cmd.Parameters.AddWithValue("h",hospitalId);cmd.Parameters.AddWithValue("id",mediaId); await using var r=await cmd.ExecuteReaderAsync(ct); MediaAssetRecord? a=null;string? key=null;if(await r.ReadAsync(ct)){a=Read(r);key=r.GetString(8);}await t.CommitAsync(ct);return(a,key); }
+ public async Task<MediaAssetRecord?> CreateAsync(Guid actorUserId,MediaUploadMetadata m,CancellationToken ct)
+ { await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var t=await c.BeginTransactionAsync(ct); await SetTenant(c,t,m.HospitalId,ct); await using var cmd=new NpgsqlCommand("INSERT INTO media_assets(hospital_id,procedure_id,media_type,storage_key,file_name,content_type,file_size_bytes,sha256_hex) VALUES(@h,@p,@type,@key,@name,@ct,@size,@sha) RETURNING id,procedure_id,media_type,file_name,content_type,file_size_bytes,sha256_hex,created_at",c,t); cmd.Parameters.AddWithValue("h",m.HospitalId);cmd.Parameters.AddWithValue("p",m.ProcedureId);cmd.Parameters.AddWithValue("type",m.MediaType);cmd.Parameters.AddWithValue("key",m.StorageKey);cmd.Parameters.AddWithValue("name",m.FileName);cmd.Parameters.AddWithValue("ct",m.ContentType);cmd.Parameters.AddWithValue("size",m.SizeBytes);cmd.Parameters.AddWithValue("sha",m.Sha256Hex); await using var r=await cmd.ExecuteReaderAsync(ct); MediaAssetRecord? row=null; if(await r.ReadAsync(ct))row=Read(r); await r.CloseAsync();
+ if(row is not null) await NpgsqlAuditEventWriter.WriteAsync(c,t,m.HospitalId,actorUserId,"media.uploaded","media_asset",row.Id,new{media_type=m.MediaType,size_bytes=m.SizeBytes},ct);
+ await t.CommitAsync(ct); return row; }
+ public async Task<IReadOnlyList<MediaAssetRecord>> ListForProcedureAsync(Guid hospitalId,Guid actorUserId,Guid procedureId,CancellationToken ct)
+ { var rows=new List<MediaAssetRecord>(); await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var t=await c.BeginTransactionAsync(ct); await SetTenant(c,t,hospitalId,ct); await using var cmd=new NpgsqlCommand("SELECT id,procedure_id,media_type,file_name,content_type,file_size_bytes,sha256_hex,created_at FROM media_assets WHERE hospital_id=@h AND procedure_id=@p ORDER BY created_at DESC LIMIT 500",c,t);cmd.Parameters.AddWithValue("h",hospitalId);cmd.Parameters.AddWithValue("p",procedureId); await using var r=await cmd.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct))rows.Add(Read(r)); await r.CloseAsync(); await NpgsqlAuditEventWriter.WriteAsync(c,t,hospitalId,actorUserId,"media.listed","media_collection",procedureId,new{result_count=rows.Count},ct);await t.CommitAsync(ct); return rows; }
+ public async Task<(MediaAssetRecord? Asset,string? StorageKey)> FindAsync(Guid hospitalId,Guid actorUserId,Guid mediaId,CancellationToken ct)
+ { await using var c=new NpgsqlConnection(connectionString); await c.OpenAsync(ct); await using var t=await c.BeginTransactionAsync(ct); await SetTenant(c,t,hospitalId,ct); await using var cmd=new NpgsqlCommand("SELECT id,procedure_id,media_type,file_name,content_type,file_size_bytes,sha256_hex,created_at,storage_key FROM media_assets WHERE hospital_id=@h AND id=@id",c,t);cmd.Parameters.AddWithValue("h",hospitalId);cmd.Parameters.AddWithValue("id",mediaId); await using var r=await cmd.ExecuteReaderAsync(ct); MediaAssetRecord? a=null;string? key=null;if(await r.ReadAsync(ct)){a=Read(r);key=r.GetString(8);}await r.CloseAsync();
+ await NpgsqlAuditEventWriter.WriteAsync(c,t,hospitalId,actorUserId,"media.read_attempt","media_asset",mediaId,new{found=a is not null},ct);
+ await t.CommitAsync(ct);return(a,key); }
+ public async Task RecordDownloadAsync(Guid hospitalId,Guid actorUserId,Guid mediaId,CancellationToken ct)
+ {
+  await using var c=new NpgsqlConnection(connectionString);
+  await c.OpenAsync(ct);
+  await using var t=await c.BeginTransactionAsync(ct);
+  await SetTenant(c,t,hospitalId,ct);
+  await using var exists=new NpgsqlCommand("SELECT EXISTS(SELECT 1 FROM media_assets WHERE hospital_id=@h AND id=@id)",c,t);
+  exists.Parameters.AddWithValue("h",hospitalId);
+  exists.Parameters.AddWithValue("id",mediaId);
+  if (!(bool)(await exists.ExecuteScalarAsync(ct)??false))
+  {
+   await t.RollbackAsync(ct);
+   throw new InvalidOperationException("Media asset is no longer available in this hospital.");
+  }
+  await NpgsqlAuditEventWriter.WriteAsync(c,t,hospitalId,actorUserId,"media.downloaded","media_asset",mediaId,new { integrity_verified=true },ct);
+  await t.CommitAsync(ct);
+ }
  private static async Task SetTenant(NpgsqlConnection c,NpgsqlTransaction t,Guid h,CancellationToken ct){await using var cmd=new NpgsqlCommand("SELECT set_config('scopx.hospital_id',@h,true)",c,t);cmd.Parameters.AddWithValue("h",h.ToString());await cmd.ExecuteNonQueryAsync(ct);}
  private static MediaAssetRecord Read(NpgsqlDataReader r)=>new(r.GetGuid(0),r.GetGuid(1),r.GetString(2),r.IsDBNull(3)?"file":r.GetString(3),r.IsDBNull(4)?"application/octet-stream":r.GetString(4),r.GetInt64(5),r.GetString(6).Trim(),r.GetFieldValue<DateTimeOffset>(7));
 }

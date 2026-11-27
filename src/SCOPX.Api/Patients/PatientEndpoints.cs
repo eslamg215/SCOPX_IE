@@ -19,21 +19,21 @@ public static class PatientEndpoints
             if (!CanRead(auth.Roles)) return Results.Forbid();
             var pageSize = Math.Clamp(limit ?? 25, 1, 100); var pageOffset = Math.Clamp(offset ?? 0, 0, 100000);
             if (q?.Length > 100) return Results.BadRequest(new { error = "query_too_long" });
-            var items = await patients.SearchAsync(auth.HospitalId, q?.Trim(), pageSize, pageOffset, ct);
+            var items = await patients.SearchAsync(auth.HospitalId, auth.UserId, q?.Trim(), pageSize, pageOffset, ct);
             return Results.Ok(new { items, limit = pageSize, offset = pageOffset });
         });
         group.MapGet("/{id:guid}", async (Guid id, HttpContext ctx, IUserRepository users, ISessionRepository sessions, IHospitalMembershipRepository memberships, IPatientRepository patients, CancellationToken ct) =>
         {
             var auth = await ResolveContext(ctx, users, sessions, memberships, ct);
             if (auth is null) return Results.Unauthorized(); if (!CanReadDetails(auth.Roles)) return Results.Forbid();
-            var patient = await patients.GetAsync(auth.HospitalId, id, ct); return patient is null ? Results.NotFound() : Results.Ok(patient);
+            var patient = await patients.GetAsync(auth.HospitalId, auth.UserId, id, ct); return patient is null ? Results.NotFound() : Results.Ok(patient);
         });
         group.MapPost("", async (PatientCreateRequest input, HttpContext ctx, IUserRepository users, ISessionRepository sessions, IHospitalMembershipRepository memberships, IPatientRepository patients, CancellationToken ct) =>
         {
             var auth = await ResolveContext(ctx, users, sessions, memberships, ct);
             if (auth is null) return Results.Unauthorized(); if (!CanCreate(auth.Roles)) return Results.Forbid();
             var error = ValidateCreate(input); if (error is not null) return Results.BadRequest(new { error });
-            try { var created = await patients.CreateAsync(auth.HospitalId, input, ct); return Results.Created($"/api/v1/patients/{created!.Id}", created); }
+            try { var created = await patients.CreateAsync(auth.HospitalId, auth.UserId, input, ct); return Results.Created($"/api/v1/patients/{created!.Id}", created); }
             catch (Npgsql.PostgresException ex) when (ex.SqlState == Npgsql.PostgresErrorCodes.UniqueViolation) { return Results.Conflict(new { error = "patient_code_conflict" }); }
         });
         group.MapPut("/{id:guid}", async (Guid id, PatientUpdateRequest input, HttpContext ctx, IUserRepository users, ISessionRepository sessions, IHospitalMembershipRepository memberships, IPatientRepository patients, CancellationToken ct) =>
@@ -41,13 +41,13 @@ public static class PatientEndpoints
             var auth = await ResolveContext(ctx, users, sessions, memberships, ct);
             if (auth is null) return Results.Unauthorized(); if (!CanUpdate(auth.Roles)) return Results.Forbid();
             var error = ValidateUpdate(input); if (error is not null) return Results.BadRequest(new { error });
-            return await patients.UpdateAsync(auth.HospitalId, id, input, ct) ? Results.NoContent() : Results.NotFound();
+            return await patients.UpdateAsync(auth.HospitalId, auth.UserId, id, input, ct) ? Results.NoContent() : Results.NotFound();
         });
         group.MapPost("/{id:guid}/archive", async (Guid id, HttpContext ctx, IUserRepository users, ISessionRepository sessions, IHospitalMembershipRepository memberships, IPatientRepository patients, CancellationToken ct) =>
         {
             var auth = await ResolveContext(ctx, users, sessions, memberships, ct);
             if (auth is null) return Results.Unauthorized(); if (!auth.Roles.Contains("hospital_admin", StringComparer.OrdinalIgnoreCase)) return Results.Forbid();
-            return await patients.ArchiveAsync(auth.HospitalId, id, ct) ? Results.NoContent() : Results.NotFound();
+            return await patients.ArchiveAsync(auth.HospitalId, auth.UserId, id, ct) ? Results.NoContent() : Results.NotFound();
         });
         return endpoints;
     }
@@ -59,10 +59,10 @@ public static class PatientEndpoints
         var user = await users.FindByIdAsync(session.UserId, ct); if (user is not { Status: "active" }) return null;
         if (!Guid.TryParse(ctx.Request.Headers["X-Hospital-ID"].ToString(), out var hospitalId)) return null;
         var membership = await memberships.FindActiveForUserAndHospitalAsync(user.Id, hospitalId, ct); if (membership is null) return null;
-        return new HospitalAuthContext(hospitalId, membership.RoleCodes.ToArray());
+        return new HospitalAuthContext(user.Id, hospitalId, membership.RoleCodes.ToArray());
     }
     private static bool CanRead(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor", "nurse", "reception", "auditor", "endoscopy_technician" }.Contains(r, StringComparer.OrdinalIgnoreCase));
-    private static bool CanReadDetails(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor", "nurse", "auditor" }.Contains(r, StringComparer.OrdinalIgnoreCase));
+    private static bool CanReadDetails(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor", "nurse" }.Contains(r, StringComparer.OrdinalIgnoreCase));
     private static bool CanCreate(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor", "nurse", "reception" }.Contains(r, StringComparer.OrdinalIgnoreCase));
     private static bool CanUpdate(string[] roles) => roles.Any(r => new[] { "hospital_admin", "doctor" }.Contains(r, StringComparer.OrdinalIgnoreCase));
     private static string? ValidateCreate(PatientCreateRequest x)
@@ -80,5 +80,5 @@ public static class PatientEndpoints
         if (x.SexAtBirth is not null && !new[] { "female", "male", "intersex", "unknown", "not_recorded" }.Contains(x.SexAtBirth, StringComparer.OrdinalIgnoreCase)) return "invalid_sex_at_birth";
         if (x.ContactPhone?.Length > 40 || x.Notes?.Length > 5000) return "field_too_long"; return null;
     }
-    private sealed record HospitalAuthContext(Guid HospitalId, string[] Roles);
+    private sealed record HospitalAuthContext(Guid UserId, Guid HospitalId, string[] Roles);
 }

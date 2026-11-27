@@ -1,5 +1,16 @@
 # SCOPX.I.E — Project Bootstrap
 
+## Current delivery status — 27 November 2026
+
+- The project branch contains a Windows x64 workstation preview, Android debug APK preview, and a responsive offline web demo.
+- The Windows workstation opens the bundled offline demo through **Open Offline Demo**. The Android wrapper opens the same canonical demo assets; CI checks the Android bundle against the web source.
+- The offline demo supports synthetic patient/procedure/report workflows, local synthetic raster images, JSON export/import, versioned backups, confirmed reset, local-storage recovery, and offline shell caching.
+- Recent changes include Android WebView origin isolation, HTTPS API endpoint checks, browser keyboard navigation, and stricter local demo data validation.
+- Latest branch revision `fed3e276a4ac1a01336b97a54952df9097f15e8f` passed GitHub Actions run [#1003](https://github.com/eslamg215/SCOPX_IE/actions/runs/46023925415): browser acceptance, Android debug APK build and asset-integrity check, API/Windows build and package checks, and PostgreSQL migrations/grants/RLS plus API integration tests.
+- Physical Android and Windows acceptance remains pending user-side testing; CI is not a substitute for device testing. See [Step 101 physical acceptance checklist](docs/STEP-101-POST-BUILD-PHYSICAL-ACCEPTANCE.md). Pull request #1 remains **draft and unmerged**. No production deployment, real patient data, clinical media routes, or real capture hardware are enabled.
+
+**Not production/clinical-ready:** physical Windows/Android device checks, real hardware adapter drivers, secure production storage and key management, operational malware scanning, retention/legal approvals, production backup/restore, clinical validation, and the pending global authentication audit-store policy approval remain outstanding.
+
 Medical endoscopy workflow, recording, reporting, and AI-assisted tools. This scaffold is for development only and is **not** clinically validated or suitable for production patient data.
 
 ## Initial stack (provisional)
@@ -156,3 +167,348 @@ JavaScript syntax, manifest JSON, local HTML references, HTTP asset responses, a
 See `docs/RELEASE-v2.33.md` for verified changes and status. Responsive web demo install steps are in `src/SCOPX.Web/INSTALL-AND-TEST.md`. Android wrapper source/build steps are in `src/SCOPX.Android/README.md`.
 
 **Important:** synthetic data only; this is not clinically validated or production-ready. Android APK compilation still requires Android SDK and Gradle on a build machine.
+
+## Step 40 — Database security gate and fail-closed API
+
+The current security review branch deliberately maps only authentication and hospital-membership context routes. A transactional append-only audit writer is now integrated into patient, procedure, report, and media repository read/write operations; audit details contain operational metadata only, not clinical text or patient names. Patient, procedure, report, media, and platform-administration routes are still **not mapped by the API host** until media encryption, malware scanning, retention/backup controls, report signing/amendment controls, read/write audit integration testing, and a separate privileged platform access path are independently verified. Their source files remain in the repository for continued development.
+
+Database migration execution is opt-in for security-sensitive drafts:
+- --include-rls-draft includes migration 004.
+- --include-auth-draft includes migrations 005 and 006 together.
+- --include-audit-hardening-draft includes migration 007.
+- --include-tenant-hardening-draft includes migrations 008 and 009 and requires --include-rls-draft.
+
+The runtime grant template is scripts/database/Grant-RuntimePrivileges.sql; the configuration preflight is scripts/database/Validate-RuntimePrivileges.sql. Do not run the grant script until migrations 001-009 have been reviewed and the RLS/runtime-role checks have been performed on a disposable database. Never use the database owner or a BYPASSRLS role as the application runtime role.
+
+The API exposes /health for liveness and /health/ready for a database SELECT 1 connectivity probe; the Windows workstation uses the readiness endpoint but does not claim schema or clinical readiness.
+
+For local development, Prepare-DevRuntimeRole.ps1 creates/verifies a separate non-owner runtime login; Apply-DevDatabaseSecurity.ps1 applies migrations/grants and synthetic checks only after an explicit confirmation and only to scopx_dev. The API launcher refuses owner credentials. Bootstrap-DevAdmin.ps1 creates the first hospital_admin account only when the development users/hospitals tables are empty; it uses ASP.NET Core password hashing and a hidden password prompt.
+
+Windows API startup is available through scripts/windows/Start-DevApi.ps1; it reads ConnectionStrings__ScopxDb from the ignored local .env file, does not print the secret, and never auto-applies migrations. It refuses to start if the API connection string uses the database-owner account; configure the separate least-privilege scopx_runtime role first.
+
+GitHub Actions now builds the API and Windows workstation on pushes and pull requests. A queued or running workflow is not a passing build; check the Actions result before treating compilation as verified. No database migration, privilege script, tenant-isolation integration test, clinical workflow test, or clinical validation is claimed complete by this change.
+
+**Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
+
+
+## Step 41 — Protected medical-media foundation
+
+A protected media foundation now validates JPEG/PNG/WebP/MP4/WebM file signatures, applies a 50 MiB upload cap, requires malware scanning through a registered ClamAV INSTREAM adapter, encrypts stored content with AES-256-GCM, and verifies the plaintext hash after authenticated decryption. Missing scanner configuration, daemon errors, malformed responses, and timeouts fail closed. The ClamAV protocol is unencrypted and must be restricted to a private network. The API host still does **not** map media routes.
+
+The SCX2 AES-GCM envelope carries a key ID and supports keyring-based decryption during rotation; automated bulk re-encryption is still outstanding. ClamAV uses an unencrypted TCP protocol and must be isolated on a private network.
+
+See `docs/STEP-41-MEDIA-PROTECTION-FOUNDATION.md` for the encryption envelope, key configuration, and remaining requirements. Production malware scanning, managed key rotation, encrypted backups, a deletion worker, secure object deletion, streaming video storage, end-to-end integration tests, and independent security review remain outstanding. Migration 011 provides only the draft retention/legal-hold/queue schema; it does not enable deletion.
+
+**Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
+
+
+## Step 42 — Immutable report versions and signature evidence
+
+Migration 010 adds append-only report snapshots, canonical SHA-256 digests, signature evidence metadata, tenant RLS, and database guards that freeze signed reports. Draft edits create a new report version, and stale updates are rejected by an expected-version check. A signature can only be recorded for the current reviewed version and must carry recent re-authentication metadata.
+
+The migration is **excluded from normal local runs** and requires explicit `--include-rls-draft --include-report-signing-draft` flags. See `docs/STEP-42-REPORT-VERSIONING-SIGNATURE-EVIDENCE.md`.
+
+Important: a provider-neutral RSA-PSS-SHA256 signing/verification service and a password-reauthenticated signing route implementation are present. The route checks the reviewed report version and writes signature evidence plus its audit event in one transaction, but it is deliberately not mapped by the API host and has no UI. Managed signing-key lifecycle, MFA, public-key registry, amendment workflow, and legal e-signature compliance remain incomplete. The service requires an externally managed private key. CI exercises RSA-PSS with ephemeral keys, including verification and tamper/fail-closed cases; the database smoke test uses dummy signature bytes only for DB guard testing. No production or legally qualified signature is issued.
+
+**Development only. Synthetic data only. No real patient identifiers, reports, or recordings.**
+
+
+## Step 43 — Medical-media retention lifecycle (draft)
+
+Migration 011 adds per-hospital retention policy records (disabled until explicitly configured), per-recording legal holds, a guarded deletion queue, and append-only deletion events. The database rejects queueing while a legal hold is active or before an explicit retention deadline. No default retention duration is assumed. The migration is excluded by default and requires `--include-rls-draft --include-retention-draft` in a disposable reviewed database.
+
+No deletion worker, scheduler, storage-object deletion, tombstone execution, two-person approval workflow, or media API activation is included. See `docs/STEP-43-MEDIA-RETENTION-LIFECYCLE.md`. Synthetic data only.
+
+
+## Step 44 — Media retention invariant hardening (draft)
+
+Migration 012 enforces one open deletion request per recording and makes legal-hold placement facts immutable, with a one-time auditable release. It is excluded by default and requires `--include-rls-draft --include-retention-draft --include-retention-hardening-draft`. No deletion worker or object deletion is enabled. See `docs/STEP-44-MEDIA-RETENTION-INVARIANT-HARDENING.md`.
+
+
+## Step 45 — New-media retention deadline stamping (draft)
+
+Migration 013 stamps a retention deadline on new media only when an explicitly enabled per-hospital policy exists. The deadline is based on `created_at + retention_days`; missing/disabled policies force NULL, caller-supplied deadlines and creation timestamps are ignored in favor of server time, and existing media deadlines are immutable and are not recalculated when policy settings change. Migration 013 is excluded by default and requires `--include-rls-draft --include-retention-draft --include-retention-hardening-draft --include-retention-stamping-draft`. CI tests enabled, disabled, and missing policies. No worker or physical deletion is enabled. Synthetic data only.
+
+
+### Step 46 — runtime retention stamping verification (draft)
+
+- The PostgreSQL smoke test now inserts a synthetic media asset as the actual `scopx_runtime` role under tenant RLS and proves that the enabled hospital policy stamps the deadline, ignores caller input, and prevents later mutation.
+- See [Step 46 verification notes](docs/STEP-46-RUNTIME-RETENTION-STAMPING-VERIFICATION.md).
+- This remains disposable-CI validation only. No deletion worker, scheduler, physical deletion, tombstoning, or media API activation is enabled.
+
+
+## Step 64 — Session lifecycle security review
+
+- Reviewed opaque token generation, hashed persistence, eight-hour expiry, logout revocation, account-disable behavior, and the PostgreSQL session indexes.
+- Confirmed CI coverage for persisted session login/lookup, expiry, revocation, disabled accounts, and tenant membership revocation.
+- Documented outstanding gaps: `last_seen_at` is not updated, no refresh/session-management UI exists, and expired/revoked rows have no bounded cleanup worker.
+- No session rows were changed or deleted. Global authentication event logging remains blocked on explicit retention and authorized-reader decisions.
+- See `docs/STEP-64-SESSION-LIFECYCLE-SECURITY-REVIEW.md`.
+
+Synthetic data only. This is a security review, not clinical validation or production readiness.
+
+
+## Step 65 — Local database deployment configuration hardening
+
+- Docker Compose now requires an explicit `POSTGRES_PASSWORD`; the weak `local_only_change_me` fallback has been removed.
+- The PostgreSQL port remains bound to loopback only (`127.0.0.1:5432`). Existing local `.env` files and database volumes are not changed by this repository edit.
+- Offline structural validation now guards against reintroducing the weak fallback.
+- No database was started, no migration was applied, and no password was read, generated, or rotated.
+- See `docs/STEP-65-LOCAL-DB-DEPLOYMENT-HARDENING.md`.
+
+
+
+## Step 66 — API health and deployment-readiness review
+
+- Kept `/health` liveness independent of PostgreSQL and `/health/ready` as a separate database-connectivity probe.
+- Removed general API rate limiting from health probes so monitoring remains reliable during request spikes.
+- Readiness returns generic status only, and request/host cancellation is no longer swallowed as a database failure.
+- Confirmed exception responses do not expose exception details and clinical/platform routes remain unmapped.
+- See `docs/STEP-66-API-HEALTH-AND-DEPLOYMENT-READINESS-REVIEW.md`.
+- Readiness confirms connectivity only; it does not establish schema, migration, tenant-security, backup, or clinical readiness.
+
+Synthetic data only. Development scaffold; not production-ready or clinically validated.
+
+
+## Step 67 — Authentication lockout and password-policy review
+
+- Verified generic login failures, atomic database failed-login increments, successful-login reset, and matching lockout escalation bands (5/10/15 attempts).
+- Added regression tests for lockout boundaries, expiry behavior, and password-policy boundaries.
+- Added structural checks to prevent drift between SQL lockout thresholds and the policy helper.
+- Login rate limiting remains per direct socket peer; trusted reverse-proxy configuration is required before production use.
+- Global authentication security-event logging remains blocked on explicit retention and authorized-reader decisions.
+- See `docs/STEP-67-AUTHENTICATION-LOCKOUT-AND-PASSWORD-POLICY-REVIEW.md`.
+
+Synthetic data only. Development scaffold; not production-ready or clinically validated.
+
+
+## Step 68 — Windows workstation API transport security
+
+- The workstation now requires HTTPS for remote API endpoints; plain HTTP is accepted only for loopback development.
+- API base URLs containing user-info credentials, query strings, or fragments are rejected before connection.
+- Offline structural checks guard the policy and its use by the workstation form.
+- This does not configure server TLS, certificate pinning, or production ingress; Windows runtime smoke testing remains outstanding.
+- See `docs/STEP-68-WORKSTATION-API-TRANSPORT-SECURITY.md`.
+
+Synthetic data only. Development scaffold; not production-ready or clinically validated.
+
+
+## Step 69 — Medical media and endoscopy capture security review
+
+- Confirmed media API routes remain unmapped; the protected-media code is not an enabled recording service.
+- Added synthetic file-signature regression tests for JPEG, PNG, WebP, MP4, and WebM, including mismatch and unsupported-extension rejection.
+- Extended structural checks for upload limits, encrypted-buffer cleanup, create-new storage writes, transactional media audit events, tenant context, and simulator-only capture.
+- Documented remaining blockers: memory-buffered media transfer, plaintext response-buffer lifetime, production storage/KMS/backup controls, real ClamAV operations, and unvalidated hardware drivers.
+- Retention/deletion migrations remain drafts; no deletion worker or physical deletion is enabled.
+- See [Step 69 media and capture security review](docs/STEP-69-MEDICAL-MEDIA-AND-CAPTURE-SECURITY-REVIEW.md).
+
+Synthetic data and protocol fixtures only. No real capture device or clinical recording was used. Not clinically validated or production-ready.
+
+
+## Step 70 — Non-clinical recording lifecycle policy
+
+- Added a pure lifecycle transition policy: Idle → Preparing → Recording → Stopping → Finalized, with explicit Error and reset paths.
+- Invalid transitions are rejected; regression tests cover allowed and forbidden transitions.
+- The policy is not a capture driver or recording engine and does not create or finalize media files.
+- Media routes remain disabled; no hardware or clinical recording was used.
+- See [Step 70 recording lifecycle state machine](docs/STEP-70-RECORDING-LIFECYCLE-STATE-MACHINE.md).
+
+
+## Step 71 — Deterministic capture-adapter lifecycle checks
+
+- Linked the existing capture contract and simulator into the portable regression test project.
+- Hardened the no-video simulator to honor cancellation and reject operations after disposal or outside its ready state.
+- Added regression checks for ready/start/status/stop, duplicate start, invalid dimensions, cancellation, and disposal.
+- These tests exercise only the in-memory simulator; they do not connect to USB/HDMI/network devices or create media.
+- Hardware drivers, frame integrity/timing, and clinical recording remain unimplemented and unvalidated.
+- See [Step 71 capture adapter lifecycle tests](docs/STEP-71-CAPTURE-ADAPTER-LIFECYCLE-TESTS.md).
+
+
+## Step 72 — Capture-device descriptor validation
+
+- Added a pure validation policy for adapter-supplied device metadata before it is displayed or consumed.
+- Enforces bounded text fields, rejects control characters and unknown enum values, and prevents physical transports from using the simulator identity.
+- Requires simulator descriptors to carry the explicit “No Video” label.
+- Added synthetic regression cases for valid USB/simulator descriptors and malformed, oversized, spoofed, and unknown-enum metadata.
+- No physical devices were enumerated or accessed; no media or clinical data was used.
+- See [Step 72 capture descriptor validation](docs/STEP-72-CAPTURE-DESCRIPTOR-VALIDATION.md).
+
+
+## Step 73 — Capture stream-options validation
+
+- Added a pure allowlist policy for capture dimensions, frame rate, and pixel format before adapter start.
+- Maximum bounds are 7680×4320 at 120 fps; supported format identifiers are MJPEG, YUY2, and NV12.
+- The no-video simulator now uses the same policy and refuses unsupported settings without changing state.
+- Added regression coverage for accepted boundary profiles and invalid dimensions, frame rates, and pixel-format values.
+- These are request bounds, not claims that any physical device supports those modes.
+- See [Step 73 capture options validation](docs/STEP-73-CAPTURE-OPTIONS-VALIDATION.md).
+
+
+## Step 74 — Validated capture-adapter boundary
+
+- Added a decorator that validates adapter descriptors at construction, validates status metadata on read, and validates start options before forwarding.
+- The decorator forwards cancellation, rejects calls after disposal, and disposes its underlying adapter once.
+- Added regression coverage using only the no-video simulator for accepted start/stop and blocked invalid options.
+- This boundary is not yet wired to physical device discovery or a real capture driver.
+- See [Step 74 validated capture adapter](docs/STEP-74-VALIDATED-CAPTURE-ADAPTER.md).
+
+
+## Step 75 — Capture readiness and fault-state gate
+
+- The validated adapter now reads and validates provider status before forwarding a start request.
+- Start is permitted only when the provider reports Ready; Capturing, Faulted, Disconnected, or invalid status blocks the request.
+- Added deterministic tests for duplicate starts, fault-state refusal, status timestamp/state/message bounds, and proof that blocked requests never reach the provider.
+- This is a software gate; hardware fault recovery and reconnect behavior remain unimplemented.
+- See [Step 75 capture readiness and fault-state gate](docs/STEP-75-CAPTURE-READINESS-FAULT-GATE.md).
+
+
+## Step 76 — Capture stop and cleanup-state policy
+
+- The validated adapter now treats Stop in Ready as an idempotent no-op.
+- Stop is forwarded only when the provider reports Capturing or Faulted; Faulted permits a cleanup attempt, while Disconnected is rejected.
+- Added deterministic simulator/fault-provider tests for normal stop, repeated stop, fault cleanup, and refusal to stop a disconnected provider.
+- Real hardware stop/recovery semantics still require vendor-specific validation.
+- See [Step 76 capture stop and cleanup policy](docs/STEP-76-CAPTURE-STOP-CLEANUP-POLICY.md).
+
+
+## Step 77 — Capture adapter state-matrix regression completion
+
+- Expanded deterministic coverage for disconnected-provider start/stop refusal, future status timestamps, and idempotent disposal.
+- Confirmed faulted providers may receive a stop cleanup attempt but never a start request.
+- Added structural guards for disconnected/faulted handling and one-time disposal.
+- Tests remain simulator/fake-only; no real device or media is involved.
+- See [Step 77 capture adapter state matrix](docs/STEP-77-CAPTURE-ADAPTER-STATE-MATRIX.md).
+
+
+## Step 78 — Windows x64 preview packaging
+
+- CI now publishes the Windows workstation as a self-contained, single-file x64 preview and uploads it as a seven-day GitHub Actions artifact.
+- The preview is unsigned and intended only for development evaluation; Windows SmartScreen warnings may appear.
+- It does not enable real capture hardware, media routes, or clinical workflows. The API/database must be configured separately.
+- Download it from the successful workflow run's Artifacts section and extract the ZIP before running `SCOPX.Workstation.exe`.
+- See [Step 78 Windows preview packaging](docs/STEP-78-WINDOWS-PREVIEW-PACKAGING.md).
+
+
+## Step 79 — Android debug APK preview
+
+- CI now builds the Kotlin Android companion using Java 17, Android SDK 35, Android Gradle Plugin 8.7.3, and Gradle 8.9.
+- The debug APK is uploaded as `SCOPX.Android-debug-preview` for seven days.
+- This is a debug-signed development APK, not a Play Store release or production-signed application.
+- The app remains an offline synthetic-data demo; backend login is a separate optional scaffold and no clinical capture is enabled.
+- See [Step 79 Android APK preview](docs/STEP-79-ANDROID-APK-PREVIEW.md).
+
+
+## Step 80 — Android API endpoint transport policy
+
+- The Android sign-in screen now requires an HTTPS base URL and rejects embedded credentials, paths, query strings, fragments, and malformed ports.
+- Added deterministic JUnit tests for accepted HTTPS endpoints and rejected unsafe URL forms.
+- CI runs Android unit tests before producing the debug APK.
+- The mobile client remains a synthetic-data demo; this does not activate clinical API workflows.
+- See [Step 80 Android endpoint transport policy](docs/STEP-80-ANDROID-ENDPOINT-TRANSPORT-POLICY.md).
+
+
+## Step 81 — Android request-origin and redirect hardening
+
+- API requests are constrained to the configured HTTPS origin and the expected `/api/v1/` path family.
+- Automatic HTTP redirects are disabled to prevent bearer-token forwarding to another host.
+- Error response bodies are not displayed; connections are disconnected in a `finally` block.
+- Added unit tests for same-origin requests and rejection of host changes, HTTP downgrade, user-info, query strings, and unexpected paths.
+- See [Step 81 Android request-origin hardening](docs/STEP-81-ANDROID-REQUEST-ORIGIN-HARDENING.md).
+
+
+## Step 81 — Android WebView isolation
+The Android offline demo WebView is restricted to its bundled app-assets origin. External navigation, file URLs, and mixed content are blocked; CI tests the navigation policy. See [Step 81 report](docs/STEP-81-ANDROID-WEBVIEW-ISOLATION.md).
+
+
+## Step 82 — Windows offline demo launch
+The Windows workstation build now bundles the responsive web demo assets and exposes an **Open Offline Demo** action to launch the local demo in the default browser. The separate WinForms feature cards remain placeholders; the launched web demo contains the synthetic-data workflows. See [Step 82 report](docs/STEP-82-WINDOWS-OFFLINE-DEMO-LAUNCH.md).
+
+
+## Step 83 — Demo workflow acceptance coverage
+The browser smoke suite now exercises synthetic media upload, JSON backup contents, and browser-reload persistence in addition to patient/procedure/report workflows and mobile layout. These remain local demo checks only. See [Step 83 report](docs/STEP-83-DEMO-WORKFLOW-ACCEPTANCE-TESTS.md).
+
+
+## Step 84 — PWA offline cache isolation
+The service worker now ignores cross-origin and non-GET requests, caches only known same-origin app-shell assets, limits offline document fallback to navigation, and only cleans up SCOPX-owned cache names. See [Step 84 report](docs/STEP-84-PWA-OFFLINE-CACHE-ISOLATION.md).
+
+
+## Step 83 — Automated offline browser acceptance
+
+- Added a dedicated Ubuntu CI job that installs Playwright-managed Chromium and runs the PWA acceptance suite.
+- The suite exercises dashboard rendering, synthetic patient/procedure/report workflows, image upload, JSON export, local-storage persistence, JavaScript errors, and mobile viewport overflow.
+- The media test now waits for asynchronous FileReader rendering before asserting.
+- See [Step 83 offline browser acceptance](docs/STEP-83-OFFLINE-BROWSER-ACCEPTANCE.md).
+
+
+## Step 85 — Demo backup import validation
+JSON backup import now validates record shapes, unique IDs, linked patient/procedure references, status values, field lengths, image data URLs, and collection size limits before replacing local demo data. Browser acceptance tests include rejection of malformed backup data. See [Step 85 report](docs/STEP-85-DEMO-BACKUP-VALIDATION.md).
+
+
+## Step 86 — Windows demo artifact verification
+The Windows CI publish job now checks that the packaged preview contains the offline demo HTML, JavaScript, CSS, and service worker before uploading the artifact. See [Step 86 report](docs/STEP-86-WINDOWS-DEMO-ARTIFACT-CHECK.md).
+
+
+## Step 87 — Offline backup import memory bound
+
+- Offline demo backup imports now reject empty files and files larger than 10 MiB before reading them into memory.
+- Browser acceptance coverage verifies an oversized backup cannot replace existing synthetic records.
+- See [Step 87 backup import size bound](docs/STEP-87-OFFLINE-BACKUP-IMPORT-SIZE-BOUND.md).
+
+
+## Step 88 — Backup export/import size symmetry
+
+- The offline demo now refuses to export a JSON backup larger than the same 10 MiB limit enforced on import.
+- Browser acceptance checks the exported backup size and confirms it remains within the import ceiling.
+- See [Step 88 backup size symmetry](docs/STEP-88-BACKUP-SIZE-SYMMETRY.md).
+
+
+## Step 83 — Local demo storage failure recovery
+The offline demo now retains the last successfully persisted JSON snapshot. If browser storage writes fail (for example, quota exhaustion), it restores the last saved state, alerts the user, and prevents the affected form/import/transition from reporting success. This is local-demo resilience only, not a clinical storage or backup system. See [Step 83 report](docs/STEP-83-DEMO-STORAGE-RECOVERY.md).
+
+
+## Step 84 — Demo image upload validation
+The local demo image uploader now checks file signatures for PNG, JPEG, GIF, and WebP instead of trusting the browser-provided MIME type. SVG and unsupported formats are rejected, and imported backup media must use a bounded base64 raster-image data URL. See [Step 84 report](docs/STEP-84-DEMO-IMAGE-VALIDATION.md).
+
+
+## Step 85 — Versioned demo backups
+New JSON backups include schema version 1. Import accepts current version 1 and legacy backups without a version, but rejects unknown future versions rather than silently interpreting them. See [Step 85 report](docs/STEP-85-VERSIONED-DEMO-BACKUPS.md).
+
+
+## Step 86 — Confirmed demo data reset
+Added an explicit reset control that asks for confirmation before restoring the seeded synthetic dataset. If local storage cannot persist the reset, the previous saved demo state is retained. See [Step 86 report](docs/STEP-86-CONFIRMED-DEMO-RESET.md).
+
+
+## Step 87 — Keyboard and navigation accessibility
+Added a visible-on-focus skip link, keyboard focus indicators, active navigation semantics, and an expanded state for the mobile menu. Browser acceptance tests exercise the skip link using the keyboard. See [Step 87 report](docs/STEP-87-WEB-ACCESSIBILITY.md).
+
+
+## Step 88 — PWA offline shell update
+Bumped the service-worker cache version, enabled safe activation of the updated app shell, and claimed controlled clients after activation. Browser acceptance tests now reload the demo while offline after the cache is populated. See [Step 88 report](docs/STEP-88-PWA-OFFLINE-UPDATE.md).
+
+
+## Step 89 — Android WebView URL edge-case hardening
+Hardened the bundled-asset navigation allowlist for malformed host values, percent-encoded paths, and backslash path forms. Added regression tests for these cases. See [Step 89 report](docs/STEP-89-ANDROID-NAVIGATION-EDGE-CASES.md).
+
+
+## Step 90 — Startup validation of local demo state
+The app now validates the persisted browser dataset against the same bounded schema used for backup import before rendering it. Invalid or corrupted local demo state is replaced with the synthetic starter dataset. Browser acceptance tests cover malformed stored data recovery. See [Step 90 report](docs/STEP-90-LOCAL-STATE-VALIDATION.md).
+
+
+## Step 91 — Android demo asset parity
+Synchronized the Android WebView's bundled HTML, CSS, JavaScript, manifest, service worker, and icon with the canonical web demo. CI now fails if the two copies drift. See [Step 91 report](docs/STEP-91-ANDROID-ASSET-PARITY.md).
+
+
+## Step 92 — Windows demo package completeness
+Expanded Windows publish verification to require the PWA manifest and icon in addition to the HTML, JavaScript, CSS, and service worker. The Windows artifact is rejected if any runtime asset is missing. See [Step 92 report](docs/STEP-92-WINDOWS-PACKAGE-COMPLETENESS.md).
+
+
+## Step 93 — Physical preview test instructions
+Added a controlled Android/Windows device test checklist for installing and exercising the debug/offline demo packages using synthetic data only. See [Step 93 report](docs/STEP-93-PHYSICAL-PREVIEW-CHECKLIST.md).
+
+
+## Step 95 — Storage quota failure regression
+The browser acceptance suite now forces a Local Storage quota error during a synthetic patient save and verifies that the change is rolled back and the form is not reported as saved. See [Step 95 report](docs/STEP-95-STORAGE-FAILURE-REGRESSION.md).
+
+
+## Step 96 — Android APK asset integrity gate
+The Android CI job now opens the built APK as a ZIP archive and verifies that all six canonical offline demo runtime assets are packaged before uploading the artifact. See [Step 96 report](docs/STEP-96-ANDROID-APK-ASSET-CHECK.md).

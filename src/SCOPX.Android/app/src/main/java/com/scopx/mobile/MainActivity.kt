@@ -41,9 +41,24 @@ class MainActivity : AppCompatActivity() {
         loginPanel=root
         assetLoader=WebViewAssetLoader.Builder().addPathHandler("/assets/",WebViewAssetLoader.AssetsPathHandler(this)).build()
         webView=WebView(this).apply {
-            settings.javaScriptEnabled=true; settings.domStorageEnabled=true; settings.allowFileAccess=false; settings.allowContentAccess=false
-            settings.javaScriptCanOpenWindowsAutomatically=false; settings.setSupportMultipleWindows(false)
-            webViewClient=object:WebViewClient(){ override fun shouldInterceptRequest(view:WebView,request:android.webkit.WebResourceRequest):android.webkit.WebResourceResponse?=assetLoader.shouldInterceptRequest(request.url) }
+            settings.javaScriptEnabled=true
+            settings.domStorageEnabled=true
+            settings.allowFileAccess=false
+            settings.allowContentAccess=false
+            settings.allowFileAccessFromFileURLs=false
+            settings.allowUniversalAccessFromFileURLs=false
+            settings.mixedContentMode=android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            settings.javaScriptCanOpenWindowsAutomatically=false
+            settings.setSupportMultipleWindows(false)
+            settings.safeBrowsingEnabled=true
+            webViewClient=object:WebViewClient(){
+                override fun shouldOverrideUrlLoading(view:WebView,request:android.webkit.WebResourceRequest):Boolean =
+                    !DemoNavigationPolicy.isAllowed(request.url.toString())
+                override fun shouldOverrideUrlLoading(view:WebView,url:String):Boolean =
+                    !DemoNavigationPolicy.isAllowed(url)
+                override fun shouldInterceptRequest(view:WebView,request:android.webkit.WebResourceRequest):android.webkit.WebResourceResponse? =
+                    if (DemoNavigationPolicy.isAllowed(request.url.toString())) assetLoader.shouldInterceptRequest(request.url) else null
+            }
             setBackgroundColor(0xFF06111D.toInt())
         }
         setContentView(root)
@@ -52,21 +67,41 @@ class MainActivity : AppCompatActivity() {
     private fun signIn(){
         val base=baseUrl.text.toString().trim().trimEnd('/'); val userEmail=email.text.toString().trim(); val pass=password.text.toString()
         if(base.isBlank()||userEmail.isBlank()||pass.isBlank()){status.text="Enter server URL and credentials.";return}
+        if (!ApiEndpointPolicy.isAllowedBaseUrl(base)) {
+            status.text = "Use an HTTPS API base URL without credentials, path, query, or fragment."
+            return
+        }
         status.text="Connecting…"
         executor.execute { try {
             val body=JSONObject().put("email",userEmail).put("password",pass).toString()
-            val response=request("$base/api/v1/auth/login","POST",body,null)
+            val response=request("$base/api/v1/auth/login","POST",body,null,base)
             val access=JSONObject(response).optString("access_token"); if(access.isBlank())throw IllegalStateException("No access token in response")
-            token=access; val hospitals=request("$base/api/v1/hospitals/mine","GET",null,access)
+            token=access; val hospitals=request("$base/api/v1/hospitals/mine","GET",null,access,base)
             main.post{password.setText("");status.text="Signed in. Hospital memberships retrieved.\n$hospitals"}
-        } catch(e:Exception){main.post{status.text="Connection/login failed: ${e.message?:"unknown error"}"}} }
+        } catch(e:Exception){main.post{status.text="Connection/login failed. Check the HTTPS server URL and credentials."}} }
     }
-    private fun request(endpoint:String,method:String,body:String?,bearer:String?):String{
-        val conn=(URL(endpoint).openConnection() as HttpURLConnection).apply{requestMethod=method;connectTimeout=10000;readTimeout=15000;setRequestProperty("Accept","application/json")}
-        if(bearer!=null)conn.setRequestProperty("Authorization","Bearer $bearer")
-        if(body!=null){conn.doOutput=true;conn.setRequestProperty("Content-Type","application/json");conn.outputStream.use{it.write(body.toByteArray(Charsets.UTF_8))}}
-        val code=conn.responseCode;val stream=if(code in 200..299)conn.inputStream else conn.errorStream;val response=stream?.bufferedReader()?.use{it.readText()}?:"";conn.disconnect()
-        if(code !in 200..299)throw IllegalStateException("HTTP $code: $response");return response
+    private fun request(endpoint:String,method:String,body:String?,bearer:String?,baseOrigin:String):String{
+        if (!ApiEndpointPolicy.isAllowedRequestUrl(baseOrigin, endpoint))
+            throw IllegalArgumentException("Request URL is outside the configured HTTPS API origin.")
+        val conn=(URL(endpoint).openConnection() as HttpURLConnection)
+        try {
+            conn.instanceFollowRedirects = false
+            conn.requestMethod=method
+            conn.connectTimeout=10000
+            conn.readTimeout=15000
+            conn.setRequestProperty("Accept","application/json")
+            if(bearer!=null)conn.setRequestProperty("Authorization","Bearer $bearer")
+            if(body!=null){
+                conn.doOutput=true
+                conn.setRequestProperty("Content-Type","application/json")
+                conn.outputStream.use{it.write(body.toByteArray(Charsets.UTF_8))}
+            }
+            val code=conn.responseCode
+            if(code !in 200..299)throw IllegalStateException("HTTP $code")
+            return conn.inputStream.bufferedReader().use{it.readText()}
+        } finally {
+            conn.disconnect()
+        }
     }
     override fun onBackPressed(){ if(webView.parent!=null) setContentView(loginPanel) else super.onBackPressed() }
     override fun onDestroy(){executor.shutdownNow();token=null;webView.destroy();super.onDestroy()}

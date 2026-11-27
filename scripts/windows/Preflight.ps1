@@ -9,6 +9,8 @@ function Check-Command($name, $args) {
 Check-Command 'docker'
 Check-Command 'dotnet'
 Check-Command 'git'
+Check-Command 'python'
+Check-Command 'psql'
 if (Get-Command docker -ErrorAction SilentlyContinue) {
   $dockerVersion = docker --version 2>&1
   $dockerInfo = docker info --format '{{.ServerVersion}}' 2>&1
