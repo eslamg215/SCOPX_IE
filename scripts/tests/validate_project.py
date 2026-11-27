@@ -456,6 +456,14 @@ if options_policy.exists():
     check('7680' in op and '4320' in op and '120' in op, 'capture start-options policy bounds dimensions and frame rate')
     check('"MJPEG"' in op and '"YUY2"' in op and '"NV12"' in op, 'capture start-options policy uses an explicit pixel-format allowlist')
 check('CaptureStartOptionsPolicy.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'capture start-options policy is linked into portable regression tests')
+validated_adapter=WORKSTATION/'Devices/ValidatedCaptureAdapter.cs'
+check(validated_adapter.exists(), 'validated capture adapter boundary decorator exists')
+if validated_adapter.exists():
+    va=validated_adapter.read_text(encoding='utf-8')
+    check('CaptureDeviceDescriptorPolicy.IsValid' in va and 'CaptureStatusPolicy.IsValid' in va, 'capture adapter validates descriptor and returned status metadata')
+    check('CaptureStartOptionsPolicy.IsValid' in va and 'ObjectDisposedException' in va, 'capture adapter validates start options and disposed-state access')
+check('ValidatedCaptureAdapter.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'validated capture adapter is linked into portable regression tests')
+
 
 
 
