@@ -73,7 +73,38 @@
   function openMedia(){const select=$('#mediaProcedure');select.innerHTML='<option value="">بدون إجراء مرتبط</option>'+data.procedures.map(p=>`<option value="${esc(p.id)}">${esc(p.title)} — ${esc((patient(p.patientId)||{}).name||'')}</option>`).join('');$('#mediaDialog').showModal();}
   $('#reportForm').addEventListener('submit',e=>{e.preventDefault();const id=e.target.dataset.reportId;const r=data.reports.find(x=>x.id===id);if(!r)return;r.title=e.target.elements.title.value.trim();r.body=e.target.elements.body.value;r.status=e.target.elements.status.value;if(!save())return;$('#reportDialog').close();render();});
   $('#closeReport').onclick=$('#cancelReport').onclick=()=>$('#reportDialog').close();
-  $('#mediaForm').addEventListener('submit',e=>{e.preventDefault();const file=e.target.elements.file.files[0];if(!file)return;if(file.size>2*1024*1024){alert('حجم الصورة أكبر من 2 ميجابايت.');return;}if(!file.type.startsWith('image/')){alert('الملف يجب أن يكون صورة.');return;}const reader=new FileReader();reader.onload=()=>{try{data.media.unshift({id:'media-'+Date.now(),procedureId:e.target.elements.procedureId.value||null,caption:e.target.elements.caption.value.trim(),dataUrl:reader.result,createdAt:today(),fileName:file.name});if(!save())return;e.target.reset();$('#mediaDialog').close();setView('media');}catch(err){alert('تعذر حفظ الصورة: المساحة المحلية قد تكون ممتلئة.');}};reader.readAsDataURL(file);});
+  function detectDemoImageType(bytes){
+    if(bytes.length>=8&&bytes[0]===0x89&&bytes[1]===0x50&&bytes[2]===0x4e&&bytes[3]===0x47&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return 'image/png';
+    if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return 'image/jpeg';
+    if(bytes.length>=6&&bytes[0]===0x47&&bytes[1]===0x49&&bytes[2]===0x46&&bytes[3]===0x38&&(bytes[4]===0x37||bytes[4]===0x39)&&bytes[5]===0x61)return 'image/gif';
+    if(bytes.length>=12&&bytes[0]===0x52&&bytes[1]===0x49&&bytes[2]===0x46&&bytes[3]===0x46&&bytes[8]===0x57&&bytes[9]===0x45&&bytes[10]===0x42&&bytes[11]===0x50)return 'image/webp';
+    return null;
+  }
+  function isSafeDemoImageDataUrl(value){
+    return typeof value==='string'&&/^data:image\\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)&&value.length<=3000000;
+  }
+  $('#mediaForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const file=e.target.elements.file.files[0];
+    if(!file)return;
+    if(file.size<=0||file.size>2*1024*1024){alert('حجم الصورة يجب أن يكون بين 1 بايت و2 ميجابايت.');return;}
+    file.arrayBuffer().then(buffer=>{
+      const detectedType=detectDemoImageType(new Uint8Array(buffer));
+      if(!detectedType){alert('نوع الصورة غير مدعوم أو أن محتوى الملف لا يطابق صورة PNG أو JPEG أو GIF أو WebP.');return;}
+      const reader=new FileReader();
+      reader.onload=()=>{
+        try{
+          const dataUrl=String(reader.result||'');
+          if(!isSafeDemoImageDataUrl(dataUrl)||!dataUrl.startsWith('data:'+detectedType+';base64,')){alert('تعذر التحقق من محتوى الصورة.');return;}
+          data.media.unshift({id:'media-'+Date.now(),procedureId:e.target.elements.procedureId.value||null,caption:e.target.elements.caption.value.trim(),dataUrl,createdAt:today(),fileName:file.name});
+          if(!save())return;
+          e.target.reset();$('#mediaDialog').close();setView('media');
+        }catch(err){alert('تعذر حفظ الصورة التجريبية محليًا.');}
+      };
+      reader.onerror=()=>alert('تعذرت قراءة ملف الصورة.');
+      reader.readAsDataURL(file);
+    }).catch(()=>alert('تعذرت قراءة ملف الصورة.'));
+  });
   $('#closeMedia').onclick=$('#cancelMedia').onclick=()=>$('#mediaDialog').close();
   $('#exportData').onclick=()=>{const payload=JSON.stringify({...data,exportedAt:new Date().toISOString(),exportType:'SCOPX.I.E DEMO ONLY'},null,2);const blob=new Blob([payload],{type:'application/json'});if(blob.size>MAX_DEMO_BACKUP_BYTES){alert('Backup exceeds the 10 MiB limit. Remove some large media items and try again.');return;}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='scopx-demo-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
   function isValidDemoBackup(value){
@@ -90,7 +121,7 @@
     if(!patients.every(p=>isText(p.name,80)&&isText(p.record,30)&&(p.age===null||p.age===undefined||(Number.isInteger(p.age)&&p.age>=0&&p.age<=120))&&(p.note===undefined||typeof p.note==='string'&&p.note.length<=250)))return false;
     if(!procedures.every(p=>patientIds.has(p.patientId)&&isText(p.title,80)&&(p.doctor===undefined||typeof p.doctor==='string'&&p.doctor.length<=80)&&['scheduled','in_progress','completed'].includes(p.status)))return false;
     if(!reports.every(r=>procedureIds.has(r.procedureId)&&isText(r.title,120)&&['draft','review'].includes(r.status)&&typeof r.body==='string'&&r.body.length<=4000))return false;
-    if(!media.every(m=>(m.procedureId===null||m.procedureId===undefined||procedureIds.has(m.procedureId))&&typeof m.dataUrl==='string'&&m.dataUrl.startsWith('data:image/')&&m.dataUrl.length<=3000000&&(m.caption===undefined||typeof m.caption==='string'&&m.caption.length<=100)))return false;
+    if(!media.every(m=>(m.procedureId===null||m.procedureId===undefined||procedureIds.has(m.procedureId))&&isSafeDemoImageDataUrl(m.dataUrl)&&(m.caption===undefined||typeof m.caption==='string'&&m.caption.length<=100)))return false;
     return true;
   }
   $('#importData').onclick=()=>$('#importFile').click();
