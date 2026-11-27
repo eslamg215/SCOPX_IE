@@ -561,6 +561,8 @@ if (web/'index.html').exists():
     check('نسخة عرض ببيانات وهمية' in wi and 'ممنوع إدخال بيانات مرضى حقيقية' in wi, 'web client displays synthetic-data safety warning')
 if (web/'app.js').exists():
     wa=(web/'app.js').read_text(encoding='utf-8')
+    check('function isValidDemoBackup' in wa and 'procedureIds.has' in wa and 'data:image/' in wa, 'demo backup import validates record relationships and media data')
+    check('patients.length>500' in wa and 'media.length>500' in wa and 'procedures.length>2000' in wa, 'demo backup import enforces bounded record counts')
     check('localStorage' in wa and 'patientForm' in wa and 'procedureForm' in wa, 'demo client supports local storage and patient/procedure forms')
     check('scheduled' in wa and 'in_progress' in wa and 'completed' in wa and 'makeReport' in wa, 'demo procedure status flow and report preview generation included')
 check((web/'manifest.webmanifest').exists() and (web/'sw.js').exists() and (web/'assets/icon.svg').exists(), 'PWA manifest, service worker and icon assets exist')
