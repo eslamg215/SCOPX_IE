@@ -88,6 +88,7 @@ try:
             page.locator('[data-view="patients"]').first.click()
             check(page.get_by_text('Demo Smoke Patient').count()>0,'synthetic patient persists after browser reload')
             page.once('dialog',lambda dialog:dialog.accept())
+            page.locator('#resetDemoData').scroll_into_view_if_needed()
             page.locator('#resetDemoData').click()
             check(page.get_by_text('Demo Smoke Patient').count()==0 and page.get_by_text('Demo Patient 01').count()>0,'confirmed demo reset restores the seeded synthetic dataset')
             invalid_backup=json.dumps({'patients':[{}],'procedures':[],'reports':[]}).encode('utf-8')
