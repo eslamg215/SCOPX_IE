@@ -431,3 +431,7 @@ The service worker now ignores cross-origin and non-GET requests, caches only kn
 
 ## Step 85 — Demo backup import validation
 JSON backup import now validates record shapes, unique IDs, linked patient/procedure references, status values, field lengths, image data URLs, and collection size limits before replacing local demo data. Browser acceptance tests include rejection of malformed backup data. See [Step 85 report](docs/STEP-85-DEMO-BACKUP-VALIDATION.md).
+
+
+## Step 86 — Windows demo artifact verification
+The Windows CI publish job now checks that the packaged preview contains the offline demo HTML, JavaScript, CSS, and service worker before uploading the artifact. See [Step 86 report](docs/STEP-86-WINDOWS-DEMO-ARTIFACT-CHECK.md).
