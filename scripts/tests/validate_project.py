@@ -337,7 +337,7 @@ if contracts.exists():
     dc=contracts.read_text(encoding='utf-8')
     check('IDeviceCaptureAdapter' in dc and 'CaptureDeviceDescriptor' in dc and 'CaptureStartOptions' in dc, 'hardware capture API exposes descriptor, status, and start options')
     check('SimulatorCaptureAdapter' in dc and 'no image/video is captured' in dc, 'simulator is explicitly non-video and test-only')
-    check('7680' in dc and '4320' in dc and '120' in dc, 'simulator capture parameters are range-validated')
+    check('CaptureStartOptionsPolicy.IsValid(options)' in dc, 'simulator delegates to the centralized capture options policy')
 check((ROOT/'docs/STEP-32-HARDWARE-CAPTURE-INTEGRATION.md').exists(), 'Step 32 hardware compatibility checklist and limitations documented')
 
 
