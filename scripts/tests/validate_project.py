@@ -480,6 +480,8 @@ check(webview_policy.exists() and webview_test.exists(), 'Android WebView naviga
 if webview_policy.exists():
     wp=webview_policy.read_text(encoding='utf-8')
     check('appassets.androidplatform.net' in wp and '/assets/' in wp, 'Android WebView policy restricts navigation to bundled app assets')
+    check('uri.host?.equals' in wp and 'path == decodedPath' in wp, 'Android WebView policy safely rejects missing hosts and encoded path traversal')
+
 if main_activity.exists():
     ma=main_activity.read_text(encoding='utf-8')
     check('DemoNavigationPolicy.isAllowed' in ma and 'MIXED_CONTENT_NEVER_ALLOW' in ma and 'allowFileAccess=false' in ma, 'Android WebView blocks external navigation, mixed content, and file access')
