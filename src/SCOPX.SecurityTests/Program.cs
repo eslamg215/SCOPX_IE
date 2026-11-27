@@ -25,6 +25,7 @@ using Microsoft.Extensions.Configuration;
 using SCOPX.Api.Reports;
 using SCOPX.Api.Media;
 using SCOPX.Api.Authentication;
+using SCOPX.Workstation.Recording;
 
 static void Require(bool condition, string message)
 {
@@ -261,6 +262,29 @@ Require(!MediaFileSignatureValidator.Matches(".jpg", pngFixture, out _, out _),
     "media extension and content signature mismatch is rejected");
 Require(!MediaFileSignatureValidator.Matches(".exe", jpegFixture, out _, out _),
     "unsupported media extension is rejected");
+
+Require(RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Idle, RecordingLifecycleState.Preparing),
+    "recording lifecycle allows idle to preparing");
+Require(RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Preparing, RecordingLifecycleState.Recording),
+    "recording lifecycle allows preparation to recording");
+Require(RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Recording, RecordingLifecycleState.Stopping),
+    "recording lifecycle allows recording to stopping");
+Require(RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Stopping, RecordingLifecycleState.Finalized),
+    "recording lifecycle allows stopping to finalized");
+Require(RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Recording, RecordingLifecycleState.Error),
+    "recording lifecycle allows recording failure");
+Require(RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Error, RecordingLifecycleState.Idle),
+    "recording lifecycle requires error reset to idle");
+Require(!RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Idle, RecordingLifecycleState.Recording),
+    "recording lifecycle rejects starting without preparation");
+Require(!RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Recording, RecordingLifecycleState.Finalized),
+    "recording lifecycle rejects finalization without stopping");
+Require(!RecordingLifecyclePolicy.IsAllowed(RecordingLifecycleState.Error, RecordingLifecycleState.Finalized),
+    "recording lifecycle rejects finalizing a failed recording");
+Require(RecordingLifecyclePolicy.Transition(RecordingLifecycleState.Stopping, RecordingLifecycleState.Finalized) == RecordingLifecycleState.Finalized,
+    "recording lifecycle transition returns the validated next state");
+RequireThrows<InvalidOperationException>(() => RecordingLifecyclePolicy.Transition(RecordingLifecycleState.Idle, RecordingLifecycleState.Finalized),
+    "recording lifecycle throws on an invalid transition");
 
 CryptographicOperations.ZeroMemory(mediaKeyA);
 CryptographicOperations.ZeroMemory(mediaKeyB);
