@@ -58,10 +58,18 @@ public sealed class ValidatedCaptureAdapter : IDeviceCaptureAdapter
         await _inner.StartAsync(options, cancellationToken).ConfigureAwait(false);
     }
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return _inner.StopAsync(cancellationToken);
+        var status = await GetStatusAsync(cancellationToken).ConfigureAwait(false);
+        if (status.State == CaptureState.Ready)
+            return;
+        if (status.State == CaptureState.Disconnected)
+            throw new InvalidOperationException("Disconnected capture adapter cannot be stopped.");
+        if (status.State is not (CaptureState.Capturing or CaptureState.Faulted))
+            throw new InvalidOperationException("Capture adapter is not in a stoppable state.");
+
+        await _inner.StopAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
