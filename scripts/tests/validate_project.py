@@ -427,6 +427,7 @@ check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in prefli
 # Step 79 Android debug APK preview checks
 android_root=ROOT/'src/SCOPX.Android'
 check((android_root/'settings.gradle.kts').exists() and (android_root/'app/build.gradle.kts').exists(), 'Android Gradle project files exist')
+check((android_root/'gradle.properties').exists() and 'android.useAndroidX=true' in (android_root/'gradle.properties').read_text(encoding='utf-8'), 'AndroidX support is explicitly enabled for Android builds')
 if (android_root/'app/build.gradle.kts').exists():
     ag=(android_root/'app/build.gradle.kts').read_text(encoding='utf-8')
     check('com.android.application' in ag and 'compileSdk = 35' in ag and 'minSdk = 26' in ag, 'Android app targets the configured SDK and minimum API')
