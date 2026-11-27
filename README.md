@@ -461,3 +461,7 @@ The local demo image uploader now checks file signatures for PNG, JPEG, GIF, and
 
 ## Step 85 — Versioned demo backups
 New JSON backups include schema version 1. Import accepts current version 1 and legacy backups without a version, but rejects unknown future versions rather than silently interpreting them. See [Step 85 report](docs/STEP-85-VERSIONED-DEMO-BACKUPS.md).
+
+
+## Step 86 — Confirmed demo data reset
+Added an explicit reset control that asks for confirmation before restoring the seeded synthetic dataset. If local storage cannot persist the reset, the previous saved demo state is retained. See [Step 86 report](docs/STEP-86-CONFIRMED-DEMO-RESET.md).
