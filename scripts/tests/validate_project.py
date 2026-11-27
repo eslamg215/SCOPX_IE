@@ -428,6 +428,7 @@ preflight=(ROOT/'scripts/windows/Preflight.ps1').read_text(encoding='utf-8')
 check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in preflight, 'Windows preflight checks migration runner dependencies')
 
 # Step 87 offline backup import size-bound checks
+pwa_smoke=ROOT/'scripts/tests/pwa_smoke_test.py'
 web_app=ROOT/'src/SCOPX.Web/app.js'
 if web_app.exists():
     wa=web_app.read_text(encoding='utf-8')
