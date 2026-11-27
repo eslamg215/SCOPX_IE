@@ -1198,6 +1198,7 @@ sealed class FaultedCaptureAdapter : IDeviceCaptureAdapter
 {
     public int StartCalls { get; private set; }
     public int StopCalls { get; private set; }
+    public int DisposeCalls { get; private set; }
     public CaptureState ReportedState { get; set; } = CaptureState.Faulted;
     public CaptureDeviceDescriptor Descriptor => new(
         "usb:synthetic-faulted-device", "Synthetic Faulted Capture Adapter",
@@ -1223,5 +1224,9 @@ sealed class FaultedCaptureAdapter : IDeviceCaptureAdapter
         return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync()
+    {
+        DisposeCalls++;
+        return ValueTask.CompletedTask;
+    }
 }
