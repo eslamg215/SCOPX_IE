@@ -424,6 +424,17 @@ if security_setup.exists():
 preflight=(ROOT/'scripts/windows/Preflight.ps1').read_text(encoding='utf-8')
 check("Check-Command 'python'" in preflight and "Check-Command 'psql'" in preflight, 'Windows preflight checks migration runner dependencies')
 
+# Step 70 non-clinical recording lifecycle policy checks
+recording_policy=WORKSTATION/'Recording/RecordingLifecyclePolicy.cs'
+check(recording_policy.exists(), 'non-clinical recording lifecycle policy exists')
+if recording_policy.exists():
+    rp=recording_policy.read_text(encoding='utf-8')
+    for state in ['Idle', 'Preparing', 'Recording', 'Stopping', 'Finalized', 'Error']:
+        check(f' {state},' in rp or f' {state}' in rp, f'recording lifecycle declares {state} state')
+    check('public static bool IsAllowed' in rp and 'public static RecordingLifecycleState Transition' in rp, 'recording lifecycle exposes pure transition validation')
+    check('no' not in rp.lower() or 'does not open devices' in rp, 'recording lifecycle policy is not a hardware driver')
+check('RecordingLifecyclePolicy.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'recording lifecycle policy is linked into portable regression tests')
+
 # Membership repository tenant-context repair checks
 membership_repo=hosp/'NpgsqlHospitalMembershipRepository.cs'
 if membership_repo.exists():
