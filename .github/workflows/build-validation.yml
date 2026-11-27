@@ -43,6 +43,20 @@ jobs:
       - name: Publish unsigned Windows x64 preview
         run: dotnet publish src/SCOPX.Workstation/SCOPX.Workstation.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false --output artifacts/SCOPX.Workstation-win-x64
 
+      - name: Verify bundled offline demo in Windows publish output
+        shell: pwsh
+        run: |
+          $required = @(
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/index.html",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/app.js",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/styles.css",
+            "artifacts/SCOPX.Workstation-win-x64/DemoWeb/sw.js"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file -PathType Leaf)) { throw "Missing bundled demo asset: $file" }
+          }
+          Write-Host "Windows preview includes the complete offline web demo shell."
+
       - name: Upload Windows workstation preview artifact
         uses: actions/upload-artifact@v4
         with:
