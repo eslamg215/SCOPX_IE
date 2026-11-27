@@ -257,3 +257,15 @@ Synthetic data only. This is a security review, not clinical validation or produ
 - Readiness confirms connectivity only; it does not establish schema, migration, tenant-security, backup, or clinical readiness.
 
 Synthetic data only. Development scaffold; not production-ready or clinically validated.
+
+
+## Step 67 — Authentication lockout and password-policy review
+
+- Verified generic login failures, atomic database failed-login increments, successful-login reset, and matching lockout escalation bands (5/10/15 attempts).
+- Added regression tests for lockout boundaries, expiry behavior, and password-policy boundaries.
+- Added structural checks to prevent drift between SQL lockout thresholds and the policy helper.
+- Login rate limiting remains per direct socket peer; trusted reverse-proxy configuration is required before production use.
+- Global authentication security-event logging remains blocked on explicit retention and authorized-reader decisions.
+- See `docs/STEP-67-AUTHENTICATION-LOCKOUT-AND-PASSWORD-POLICY-REVIEW.md`.
+
+Synthetic data only. Development scaffold; not production-ready or clinically validated.
