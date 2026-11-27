@@ -489,3 +489,7 @@ Synchronized the Android WebView's bundled HTML, CSS, JavaScript, manifest, serv
 
 ## Step 92 — Windows demo package completeness
 Expanded Windows publish verification to require the PWA manifest and icon in addition to the HTML, JavaScript, CSS, and service worker. The Windows artifact is rejected if any runtime asset is missing. See [Step 92 report](docs/STEP-92-WINDOWS-PACKAGE-COMPLETENESS.md).
+
+
+## Step 93 — Physical preview test instructions
+Added a controlled Android/Windows device test checklist for installing and exercising the debug/offline demo packages using synthetic data only. See [Step 93 report](docs/STEP-93-PHYSICAL-PREVIEW-CHECKLIST.md).
