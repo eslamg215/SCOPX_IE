@@ -466,6 +466,8 @@ check('ValidatedCaptureAdapter.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.Secur
 if validated_adapter.exists():
     check('CaptureState.Ready' in va and 'CaptureState.Capturing' in va and 'CaptureState.Faulted' in va and 'CaptureState.Disconnected' in va, 'validated capture adapter has explicit stop and cleanup state gates')
     check('await _inner.StopAsync' in va, 'validated capture adapter forwards stop only after state validation')
+    check('CaptureState.Disconnected' in va and 'CaptureState.Faulted' in va, 'validated adapter explicitly handles disconnected and faulted providers')
+    check('Interlocked.Exchange(ref _disposed, 1)' in va, 'validated adapter disposal is idempotent')
 
 
 
