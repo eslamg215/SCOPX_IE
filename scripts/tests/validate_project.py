@@ -615,6 +615,11 @@ check("request.mode!=='navigate'" in sw_text and "if(request.mode==='navigate')"
 check("scopx-demo-shell-v4" in sw_text and "self.skipWaiting()" in sw_text and "self.clients.claim()" in sw_text, 'PWA activates updated shell cache and claims clients')
 
 check((ROOT/'docs/STEP-39-RESPONSIVE-PWA-CLIENT.md').exists() and 'Step 39' in readme, 'Step 39 PWA run instructions and limitations documented')
+for asset in ['index.html','styles.css','app.js','manifest.webmanifest','sw.js','assets/icon.svg']:
+    web_asset=web/asset
+    android_asset=ROOT/'src/SCOPX.Android/app/src/main/assets/scopx'/asset
+    check(web_asset.exists() and android_asset.exists() and web_asset.read_bytes()==android_asset.read_bytes(), f'Android bundled demo asset matches web source: {asset}')
+
 check((ROOT/'scripts/tests/pwa_smoke_test.py').exists(), 'PWA HTTP smoke-test script is included')
 
 if failures:
