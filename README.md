@@ -449,3 +449,7 @@ The Windows CI publish job now checks that the packaged preview contains the off
 - The offline demo now refuses to export a JSON backup larger than the same 10 MiB limit enforced on import.
 - Browser acceptance checks the exported backup size and confirms it remains within the import ceiling.
 - See [Step 88 backup size symmetry](docs/STEP-88-BACKUP-SIZE-SYMMETRY.md).
+
+
+## Step 83 — Local demo storage failure recovery
+The offline demo now retains the last successfully persisted JSON snapshot. If browser storage writes fail (for example, quota exhaustion), it restores the last saved state, alerts the user, and prevents the affected form/import/transition from reporting success. This is local-demo resilience only, not a clinical storage or backup system. See [Step 83 report](docs/STEP-83-DEMO-STORAGE-RECOVERY.md).
