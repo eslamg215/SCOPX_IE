@@ -45,12 +45,17 @@ public sealed class ValidatedCaptureAdapter : IDeviceCaptureAdapter
         return status;
     }
 
-    public Task StartAsync(CaptureStartOptions options, CancellationToken cancellationToken = default)
+    public async Task StartAsync(CaptureStartOptions options, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         if (!CaptureStartOptionsPolicy.IsValid(options))
             throw new ArgumentOutOfRangeException(nameof(options), "Capture options failed validation.");
-        return _inner.StartAsync(options, cancellationToken);
+
+        var status = await GetStatusAsync(cancellationToken).ConfigureAwait(false);
+        if (status.State != CaptureState.Ready)
+            throw new InvalidOperationException("Capture adapter must be ready before starting.");
+
+        await _inner.StartAsync(options, cancellationToken).ConfigureAwait(false);
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
