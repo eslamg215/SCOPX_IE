@@ -81,7 +81,7 @@
     return null;
   }
   function isSafeDemoImageDataUrl(value){
-    return typeof value==='string'&&/^data:image\\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)&&value.length<=3000000;
+        return typeof value==='string'&&new RegExp('^data:image/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$').test(value)&&value.length<=3000000;
   }
   $('#mediaForm').addEventListener('submit',e=>{
     e.preventDefault();
