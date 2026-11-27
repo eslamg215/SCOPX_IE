@@ -608,6 +608,8 @@ sw_text=(web/'sw.js').read_text(encoding='utf-8')
 check("url.origin!==self.location.origin" in sw_text, 'PWA service worker ignores cross-origin requests')
 check("key.startsWith(CACHE_PREFIX)" in sw_text and "request.method!=='GET'" in sw_text, 'PWA service worker only rotates its own cache and ignores non-GET requests')
 check("request.mode!=='navigate'" in sw_text and "if(request.mode==='navigate')" in sw_text, 'PWA offline fallback is limited to navigations and known app assets')
+check("scopx-demo-shell-v4" in sw_text and "self.skipWaiting()" in sw_text and "self.clients.claim()" in sw_text, 'PWA activates updated shell cache and claims clients')
+
 check((ROOT/'docs/STEP-39-RESPONSIVE-PWA-CLIENT.md').exists() and 'Step 39' in readme, 'Step 39 PWA run instructions and limitations documented')
 check((ROOT/'scripts/tests/pwa_smoke_test.py').exists(), 'PWA HTTP smoke-test script is included')
 
