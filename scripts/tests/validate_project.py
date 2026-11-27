@@ -434,6 +434,16 @@ if (android_root/'app/build.gradle.kts').exists():
     ag=(android_root/'app/build.gradle.kts').read_text(encoding='utf-8')
     check('com.android.application' in ag and 'compileSdk = 35' in ag and 'minSdk = 26' in ag, 'Android app targets the configured SDK and minimum API')
     check('JavaVersion.VERSION_17' in ag and 'jvmTarget = "17"' in ag, 'Android Java and Kotlin compile targets both use JVM 17')
+webview_policy=android_root/'app/src/main/java/com/scopx/mobile/DemoNavigationPolicy.kt'
+webview_test=android_root/'app/src/test/java/com/scopx/mobile/DemoNavigationPolicyTest.kt'
+main_activity=android_root/'app/src/main/java/com/scopx/mobile/MainActivity.kt'
+check(webview_policy.exists() and webview_test.exists(), 'Android WebView navigation policy and unit tests exist')
+if webview_policy.exists():
+    wp=webview_policy.read_text(encoding='utf-8')
+    check('appassets.androidplatform.net' in wp and '/assets/' in wp, 'Android WebView policy restricts navigation to bundled app assets')
+if main_activity.exists():
+    ma=main_activity.read_text(encoding='utf-8')
+    check('DemoNavigationPolicy.isAllowed' in ma and 'MIXED_CONTENT_NEVER_ALLOW' in ma and 'allowFileAccess=false' in ma, 'Android WebView blocks external navigation, mixed content, and file access')
 api_policy=android_root/'app/src/main/java/com/scopx/mobile/ApiEndpointPolicy.kt'
 api_policy_test=android_root/'app/src/test/java/com/scopx/mobile/ApiEndpointPolicyTest.kt'
 main_activity=(android_root/'app/src/main/java/com/scopx/mobile/MainActivity.kt')
