@@ -30,6 +30,10 @@ try:
             errors=[]
             page.on('pageerror',lambda err:errors.append(str(err)))
             page.goto(url,wait_until='networkidle',timeout=7000)
+            page.keyboard.press('Tab')
+            check(page.evaluate("document.activeElement.classList.contains('skip-link')"),'keyboard focus reaches the skip-to-content link first')
+            page.keyboard.press('Enter')
+            check(page.evaluate("document.activeElement.id === 'viewRoot'"),'skip link moves keyboard focus to main content')
             check(page.locator('#pageTitle').inner_text()=='نظرة عامة','browser renders dashboard')
             check(page.locator('.stat-card').count()==4,'dashboard displays metric cards')
             page.locator('[data-view="patients"]').first.click()
