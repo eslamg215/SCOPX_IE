@@ -117,6 +117,19 @@ Require(AuthHeaderReader.ReadBearer("Bearer   " + new string('c', 64) + "  ") ==
 Require(AuthHeaderReader.ReadBearer("Bearer " + new string('d', 128)) == new string('d', 128), "maximum-length bearer token is accepted");
 Require(AuthHeaderReader.ReadBearer("Bearer " + new string('e', 129)) is null, "bearer tokens longer than the maximum length are rejected");
 
+Require(LoginLockoutPolicy.LockoutFor(4) == TimeSpan.Zero, "fewer than five failed logins do not trigger account lockout");
+Require(LoginLockoutPolicy.LockoutFor(5) == TimeSpan.FromMinutes(15), "five failed logins trigger a 15-minute lockout");
+Require(LoginLockoutPolicy.LockoutFor(9) == TimeSpan.FromMinutes(15), "failed-login lockout remains 15 minutes through attempt nine");
+Require(LoginLockoutPolicy.LockoutFor(10) == TimeSpan.FromHours(1), "ten failed logins trigger a one-hour lockout");
+Require(LoginLockoutPolicy.LockoutFor(14) == TimeSpan.FromHours(1), "failed-login lockout remains one hour through attempt fourteen");
+Require(LoginLockoutPolicy.LockoutFor(15) == TimeSpan.FromHours(24), "fifteen failed logins trigger a 24-hour lockout");
+Require(LoginLockoutPolicy.IsLocked(DateTimeOffset.UtcNow.AddSeconds(1), DateTimeOffset.UtcNow), "future lockout expiry is enforced");
+Require(!LoginLockoutPolicy.IsLocked(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow), "lockout expires at its exact expiry timestamp");
+Require(PasswordPolicy.IsAcceptable("ScopxTestPass2026"), "password policy accepts a compliant synthetic password");
+Require(!PasswordPolicy.IsAcceptable("shortA1"), "password policy rejects passwords below the minimum length");
+Require(!PasswordPolicy.IsAcceptable(new string('A', 129) + "a1"), "password policy rejects passwords above the maximum length");
+Require(!PasswordPolicy.IsAcceptable("alllowercase123"), "password policy requires uppercase, lowercase, and numeric characters");
+
 using var rsa = RSA.Create(3072);
 var privatePem = rsa.ExportPkcs8PrivateKeyPem();
 var publicPem = rsa.ExportSubjectPublicKeyInfoPem();
