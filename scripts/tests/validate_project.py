@@ -303,7 +303,7 @@ if wf.exists():
     check('NOT FOR CLINICAL USE' in wtext and 'not connected' in wtext, 'workstation clearly marks clinical warning and placeholder features')
     check('OpenOfflineDemo' in wtext and 'DemoWeb' in wtext and 'UseShellExecute = true' in wtext, 'workstation provides a launcher for the bundled offline demo')
     check('../SCOPX.Web/**/*' in wsproj and 'DemoWeb/%(RecursiveDir)' in wsproj, 'workstation build bundles offline web demo assets')
-check('DemoWeb/manifest.webmanifest' in wf and 'DemoWeb/assets/icon.svg' in wf, 'Windows publish validation requires PWA manifest and icon assets')
+check('DemoWeb/manifest.webmanifest' in wtext and 'DemoWeb/assets/icon.svg' in wtext, 'Windows publish validation requires PWA manifest and icon assets')
 
 wsproj=(workstation/'SCOPX.Workstation.csproj').read_text(encoding='utf-8')
 check('net10.0-windows' in wsproj and 'UseWindowsForms' in wsproj, 'workstation is configured as Windows desktop WinForms app')
