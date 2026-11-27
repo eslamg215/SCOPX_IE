@@ -75,6 +75,11 @@ if auth_endpoints.exists():
 session_repo=infra/'Sessions/NpgsqlSessionRepository.cs'
 check(session_repo.exists() and 'revoked_at IS NULL' in session_repo.read_text(encoding='utf-8'), 'session repository supports active-session lookup and revocation')
 check('IncrementFailedLoginAsync' in repo and 'failed_login_count = failed_login_count + 1' in repo, 'failed login counter increment is atomic in SQL')
+lockout=(security/'LoginLockoutPolicy.cs').read_text(encoding='utf-8')
+check('MaxFailedAttemptsBeforeLockout = 5' in lockout and 'TimeSpan.FromMinutes(15)' in lockout and 'TimeSpan.FromHours(1)' in lockout and 'TimeSpan.FromHours(24)' in lockout, 'lockout helper defines the documented 5/10/15 escalation bands')
+check("failed_login_count + 1 >= 15" in repo and "failed_login_count + 1 >= 10" in repo and "failed_login_count + 1 >= 5" in repo, 'database lockout thresholds match the policy escalation bands')
+check('LockoutFor(4)' in security_tests and 'LockoutFor(15)' in security_tests and 'IsLocked' in security_tests, 'security tests cover lockout threshold and expiry boundaries')
+check('PasswordPolicy.IsAcceptable' in security_tests and '129' in security_tests, 'security tests cover password policy boundaries')
 readme=(ROOT/'README.md').read_text(encoding='utf-8')
 check('clinical' in readme.lower() and ('not' in readme.lower() or 'draft' in readme.lower()), 'README includes non-clinical readiness disclaimer')
 
