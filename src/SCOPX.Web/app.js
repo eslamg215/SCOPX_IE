@@ -21,7 +21,7 @@
     data=stored?JSON.parse(stored):null;
     if(data&&Array.isArray(data.patients)&&Array.isArray(data.procedures)&&Array.isArray(data.reports)) lastPersistedJson=stored;
   } catch { data=null; lastPersistedJson=null; }
-  if(!data||!Array.isArray(data.patients)||!Array.isArray(data.procedures)||!Array.isArray(data.reports)) { data=structuredClone(demoSeed); save(); }
+  if(!isValidDemoBackup(data)) { data=structuredClone(demoSeed); save(); }
   if(!Array.isArray(data.media)) data.media=[];
   function save(){
     try {
