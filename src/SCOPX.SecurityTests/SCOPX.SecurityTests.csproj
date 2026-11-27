@@ -10,6 +10,7 @@
     <Compile Include="../SCOPX.Workstation/Devices/DeviceCaptureContracts.cs" Link="DeviceCaptureContracts.cs" />
     <Compile Include="../SCOPX.Workstation/Devices/CaptureDeviceDescriptorPolicy.cs" Link="CaptureDeviceDescriptorPolicy.cs" />
     <Compile Include="../SCOPX.Workstation/Devices/CaptureStartOptionsPolicy.cs" Link="CaptureStartOptionsPolicy.cs" />
+    <Compile Include="../SCOPX.Workstation/Devices/ValidatedCaptureAdapter.cs" Link="ValidatedCaptureAdapter.cs" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\SCOPX.Api\SCOPX.Api.csproj" />
   </ItemGroup>
