@@ -45,3 +45,7 @@ JSON imports are checked for supported record fields, unique IDs, valid patient/
 
 ## Local storage recovery (Step 83)
 The demo keeps the last successfully saved snapshot. If local browser storage is full or unavailable during a write, the change is rolled back to the last saved snapshot and the UI reports that it was not saved. Export backups regularly during testing; browser storage is not a clinical record store.
+
+
+## Demo image validation (Step 84)
+Only PNG, JPEG, GIF, and WebP images up to 2 MiB are accepted. The app checks the file's binary signature rather than trusting its extension or browser MIME label. SVG and other formats are rejected. These restrictions apply to the synthetic offline demo only.
