@@ -340,7 +340,7 @@ Require(!CaptureDeviceDescriptorPolicy.IsValid(
     syntheticUsbDescriptor with { DisplayName = "  " }, out _),
     "capture descriptor policy rejects blank display names");
 Require(!CaptureDeviceDescriptorPolicy.IsValid(
-    syntheticUsbDescriptor with { DisplayName = "Unsafe\\nDevice" }, out _),
+    syntheticUsbDescriptor with { DisplayName = "Unsafe\nDevice" }, out _),
     "capture descriptor policy rejects control characters in metadata");
 Require(!CaptureDeviceDescriptorPolicy.IsValid(
     syntheticUsbDescriptor with { Transport = (CaptureTransport)999 }, out _),
