@@ -504,6 +504,8 @@ if (android_root/'app/build.gradle.kts').exists():
     check('junit:junit:4.13.2' in ag, 'Android endpoint policy uses JUnit 4 regression tests')
 if workflow_file.exists():
     check('testDebugUnitTest' in wf_text, 'CI runs Android endpoint policy unit tests before packaging the APK')
+check('Verify bundled web demo assets inside Android APK' in wf_text and 'assets/scopx/index.html' in wf_text and 'assets/scopx/sw.js' in wf_text, 'Android CI inspects the APK archive for the complete offline demo asset bundle')
+
 
 if workflow_file.exists():
     wf_text=workflow_file.read_text(encoding='utf-8')
