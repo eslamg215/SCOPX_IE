@@ -485,3 +485,7 @@ The app now validates the persisted browser dataset against the same bounded sch
 
 ## Step 91 — Android demo asset parity
 Synchronized the Android WebView's bundled HTML, CSS, JavaScript, manifest, service worker, and icon with the canonical web demo. CI now fails if the two copies drift. See [Step 91 report](docs/STEP-91-ANDROID-ASSET-PARITY.md).
+
+
+## Step 92 — Windows demo package completeness
+Expanded Windows publish verification to require the PWA manifest and icon in addition to the HTML, JavaScript, CSS, and service worker. The Windows artifact is rejected if any runtime asset is missing. See [Step 92 report](docs/STEP-92-WINDOWS-PACKAGE-COMPLETENESS.md).
