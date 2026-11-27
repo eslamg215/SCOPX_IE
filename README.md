@@ -367,3 +367,12 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - Added structural guards for disconnected/faulted handling and one-time disposal.
 - Tests remain simulator/fake-only; no real device or media is involved.
 - See [Step 77 capture adapter state matrix](docs/STEP-77-CAPTURE-ADAPTER-STATE-MATRIX.md).
+
+
+## Step 78 — Windows x64 preview packaging
+
+- CI now publishes the Windows workstation as a self-contained, single-file x64 preview and uploads it as a seven-day GitHub Actions artifact.
+- The preview is unsigned and intended only for development evaluation; Windows SmartScreen warnings may appear.
+- It does not enable real capture hardware, media routes, or clinical workflows. The API/database must be configured separately.
+- Download it from the successful workflow run's Artifacts section and extract the ZIP before running `SCOPX.Workstation.exe`.
+- See [Step 78 Windows preview packaging](docs/STEP-78-WINDOWS-PREVIEW-PACKAGING.md).
