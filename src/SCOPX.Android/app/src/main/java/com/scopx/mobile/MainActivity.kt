@@ -41,9 +41,24 @@ class MainActivity : AppCompatActivity() {
         loginPanel=root
         assetLoader=WebViewAssetLoader.Builder().addPathHandler("/assets/",WebViewAssetLoader.AssetsPathHandler(this)).build()
         webView=WebView(this).apply {
-            settings.javaScriptEnabled=true; settings.domStorageEnabled=true; settings.allowFileAccess=false; settings.allowContentAccess=false
-            settings.javaScriptCanOpenWindowsAutomatically=false; settings.setSupportMultipleWindows(false)
-            webViewClient=object:WebViewClient(){ override fun shouldInterceptRequest(view:WebView,request:android.webkit.WebResourceRequest):android.webkit.WebResourceResponse?=assetLoader.shouldInterceptRequest(request.url) }
+            settings.javaScriptEnabled=true
+            settings.domStorageEnabled=true
+            settings.allowFileAccess=false
+            settings.allowContentAccess=false
+            settings.allowFileAccessFromFileURLs=false
+            settings.allowUniversalAccessFromFileURLs=false
+            settings.mixedContentMode=android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            settings.javaScriptCanOpenWindowsAutomatically=false
+            settings.setSupportMultipleWindows(false)
+            settings.safeBrowsingEnabled=true
+            webViewClient=object:WebViewClient(){
+                override fun shouldOverrideUrlLoading(view:WebView,request:android.webkit.WebResourceRequest):Boolean =
+                    !DemoNavigationPolicy.isAllowed(request.url.toString())
+                override fun shouldOverrideUrlLoading(view:WebView,url:String):Boolean =
+                    !DemoNavigationPolicy.isAllowed(url)
+                override fun shouldInterceptRequest(view:WebView,request:android.webkit.WebResourceRequest):android.webkit.WebResourceResponse? =
+                    if (DemoNavigationPolicy.isAllowed(request.url.toString())) assetLoader.shouldInterceptRequest(request.url) else null
+            }
             setBackgroundColor(0xFF06111D.toInt())
         }
         setContentView(root)
