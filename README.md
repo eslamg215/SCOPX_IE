@@ -453,3 +453,7 @@ The Windows CI publish job now checks that the packaged preview contains the off
 
 ## Step 83 — Local demo storage failure recovery
 The offline demo now retains the last successfully persisted JSON snapshot. If browser storage writes fail (for example, quota exhaustion), it restores the last saved state, alerts the user, and prevents the affected form/import/transition from reporting success. This is local-demo resilience only, not a clinical storage or backup system. See [Step 83 report](docs/STEP-83-DEMO-STORAGE-RECOVERY.md).
+
+
+## Step 84 — Demo image upload validation
+The local demo image uploader now checks file signatures for PNG, JPEG, GIF, and WebP instead of trusting the browser-provided MIME type. SVG and unsupported formats are rejected, and imported backup media must use a bounded base64 raster-image data URL. See [Step 84 report](docs/STEP-84-DEMO-IMAGE-VALIDATION.md).
