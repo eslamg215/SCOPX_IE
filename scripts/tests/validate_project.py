@@ -463,6 +463,10 @@ if validated_adapter.exists():
     check('CaptureDeviceDescriptorPolicy.IsValid' in va and 'CaptureStatusPolicy.IsValid' in va, 'capture adapter validates descriptor and returned status metadata')
     check('CaptureStartOptionsPolicy.IsValid' in va and 'ObjectDisposedException' in va, 'capture adapter validates start options and disposed-state access')
 check('ValidatedCaptureAdapter.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'validated capture adapter is linked into portable regression tests')
+if validated_adapter.exists():
+    check('CaptureState.Ready' in va and 'CaptureState.Capturing' in va and 'CaptureState.Faulted' in va and 'CaptureState.Disconnected' in va, 'validated capture adapter has explicit stop and cleanup state gates')
+    check('await _inner.StopAsync' in va, 'validated capture adapter forwards stop only after state validation')
+
 
 
 
