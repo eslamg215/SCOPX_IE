@@ -35,3 +35,14 @@ The WebView allowlist rejects missing hosts, percent-encoded paths, and backslas
 
 ## Step 91 — Bundled asset parity
 The Android WebView assets under `app/src/main/assets/scopx/` are kept byte-for-byte identical to `src/SCOPX.Web/`. CI checks HTML, CSS, JavaScript, manifest, service worker, and icon parity before release artifacts are considered valid.
+
+
+## Step 93 — Physical Android preview test
+1. Download `SCOPX.Android-debug-preview` from a successful GitHub Actions run.
+2. Extract the artifact ZIP and copy `app-debug.apk` to the Android device.
+3. Install the APK. If Android blocks installation, allow this browser/file manager to install apps for this one-time action.
+4. Open SCOPX.I.E and tap **Open Offline Demo App**. Do not use the API sign-in fields for this offline demo test.
+5. Test only with synthetic names and images: add a demo patient, create a demo procedure, move it through start/complete, edit the draft report, upload a small synthetic PNG/JPEG/GIF/WebP image, export a JSON backup, and try airplane mode.
+6. Use **إعادة الضبط** only after exporting if you want to return to the starter sample data.
+
+The APK is a debug build, not signed for store release. Minimum Android version is API 26 (Android 8.0). If installing over an older differently signed preview fails, uninstall that old preview first; doing so removes its local demo data. Never use real patient information or clinical images.
