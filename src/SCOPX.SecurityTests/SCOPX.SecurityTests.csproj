@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../SCOPX.Workstation/Recording/RecordingLifecyclePolicy.cs" Link="RecordingLifecyclePolicy.cs" />
+    <Compile Include="../SCOPX.Workstation/Devices/DeviceCaptureContracts.cs" Link="DeviceCaptureContracts.cs" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\SCOPX.Api\SCOPX.Api.csproj" />
   </ItemGroup>
