@@ -26,6 +26,7 @@ using SCOPX.Api.Reports;
 using SCOPX.Api.Media;
 using SCOPX.Api.Authentication;
 using SCOPX.Workstation.Recording;
+using SCOPX.Workstation.Devices;
 
 static void Require(bool condition, string message)
 {
@@ -285,6 +286,46 @@ Require(RecordingLifecyclePolicy.Transition(RecordingLifecycleState.Stopping, Re
     "recording lifecycle transition returns the validated next state");
 RequireThrows<InvalidOperationException>(() => RecordingLifecyclePolicy.Transition(RecordingLifecycleState.Idle, RecordingLifecycleState.Finalized),
     "recording lifecycle throws on an invalid transition");
+
+// Step 71: deterministic simulator adapter contract checks. This adapter emits no media.
+await using (var simulator = new SimulatorCaptureAdapter())
+{
+    var initialStatus = await simulator.GetStatusAsync();
+    Require(initialStatus.State == CaptureState.Ready
+        && initialStatus.Message!.Contains("no real capture", StringComparison.OrdinalIgnoreCase),
+        "capture simulator starts ready and explicitly declares that it produces no real video");
+
+    await simulator.StartAsync(new CaptureStartOptions(1920, 1080, 30));
+    var activeStatus = await simulator.GetStatusAsync();
+    Require(activeStatus.State == CaptureState.Capturing,
+        "capture simulator transitions to capturing after a valid start request");
+
+    await RequireThrowsAsync<InvalidOperationException>(
+        () => simulator.StartAsync(new CaptureStartOptions(1280, 720, 30)),
+        "capture simulator rejects a duplicate start request");
+
+    await simulator.StopAsync();
+    var stoppedStatus = await simulator.GetStatusAsync();
+    Require(stoppedStatus.State == CaptureState.Ready,
+        "capture simulator returns to ready after stop");
+
+    await RequireThrowsAsync<ArgumentOutOfRangeException>(
+        () => simulator.StartAsync(new CaptureStartOptions(0, 1080, 30)),
+        "capture simulator rejects invalid dimensions");
+
+    using var cancelled = new CancellationTokenSource();
+    cancelled.Cancel();
+    await RequireThrowsAsync<OperationCanceledException>(
+        () => simulator.StartAsync(new CaptureStartOptions(640, 480, 30), cancelled.Token),
+        "capture simulator honors cancellation before starting");
+    Require((await simulator.GetStatusAsync()).State == CaptureState.Ready,
+        "cancelled simulator start leaves capture inactive");
+
+    await simulator.DisposeAsync();
+    await RequireThrowsAsync<ObjectDisposedException>(
+        () => simulator.StartAsync(new CaptureStartOptions(640, 480, 30)),
+        "disposed capture simulator cannot be restarted");
+}
 
 CryptographicOperations.ZeroMemory(mediaKeyA);
 CryptographicOperations.ZeroMemory(mediaKeyB);
