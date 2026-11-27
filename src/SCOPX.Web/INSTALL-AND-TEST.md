@@ -53,3 +53,7 @@ Only PNG, JPEG, GIF, and WebP images up to 2 MiB are accepted. The app checks th
 
 ## Backup format version (Step 85)
 New exports include `schemaVersion: 1`. Imports accept version 1 and legacy backups without a version; unknown future schema versions are rejected to avoid silent misinterpretation. Keep a copy of important demo backups outside the browser profile.
+
+
+## Resetting the synthetic demo (Step 86)
+Use **إعادة الضبط** only when you want to discard locally added demo records and restore the sample dataset. The app asks for confirmation first. Export a JSON demo backup before resetting if you want to retain your test records.
