@@ -1,6 +1,6 @@
 # SCOPX.I.E Mobile Demo (Android WebView wrapper)
 
-This is an offline Android wrapper around the responsive SCOPX.I.E demo web client. It is a **synthetic-data-only prototype**. It is not a clinical app and is not connected to a backend.
+This is an Android companion prototype with two separate paths: an offline WebView demo and an optional HTTPS API sign-in scaffold. The bundled demo is **synthetic-data-only** and is not a clinical app. API sign-in does not activate clinical workflows.
 
 ## Build APK
 1. Install Android Studio with Android SDK Platform 35 and Build Tools.
@@ -10,13 +10,20 @@ This is an offline Android wrapper around the responsive SCOPX.I.E demo web clie
 
 ## App behavior
 - Opens the bundled web demo offline in a WebView.
+- WebView navigation is restricted to the bundled app-assets origin; external URLs, file URLs, and mixed content are blocked.
+- JavaScript and DOM storage are enabled only for the bundled demo; file access and cross-file access remain disabled.
 - Demo records are stored locally using WebView local storage.
+- Optional API sign-in uses HTTPS and is constrained to the configured origin; it is a connectivity scaffold, not a clinical workflow.
 - Synthetic patient/procedure/report/media workflows and JSON import/export only.
 - Do not use real patient information or clinical images.
 
 ## Limitations
-This environment does not have Android SDK or Gradle installed, so APK compilation and device testing have not been completed. This project is a build-ready wrapper source, not an APK. Clinical functionality, hardware capture, backend connectivity, and security validation are not enabled.
+CI builds a debug APK, but physical-device installation and runtime behavior still require user testing. Clinical functionality, hardware capture, and production backend workflows are not enabled.
 
 
 ## CI APK preview
 The repository CI now builds a debug APK using Java 17, Android SDK 35, and Gradle 8.9. Download the `SCOPX.Android-debug-preview` artifact from the successful GitHub Actions run. The APK is for synthetic-data testing only and is not production-signed.
+
+
+## Step 81 — WebView navigation isolation
+The Android WebView now permits navigation and resource loading only from the bundled `https://appassets.androidplatform.net/assets/` origin. External origins, file URLs, JavaScript URLs, URL credentials, query strings, and fragments are rejected. Mixed content and file-origin access are disabled. JUnit regression tests run in CI.
