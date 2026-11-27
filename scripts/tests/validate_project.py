@@ -300,6 +300,8 @@ if wf.exists():
     wtext=wf.read_text(encoding='utf-8')
     check('CheckApi' in wtext and '/health/ready' in wtext and 'connectivity only' in wtext, 'workstation shell checks database connectivity without claiming clinical readiness')
     check('NOT FOR CLINICAL USE' in wtext and 'not connected' in wtext, 'workstation clearly marks clinical warning and placeholder features')
+    check('OpenOfflineDemo' in wtext and 'DemoWeb' in wtext and 'UseShellExecute = true' in wtext, 'workstation provides a launcher for the bundled offline demo')
+    check('../SCOPX.Web/**/*' in wsproj and 'DemoWeb/%(RecursiveDir)' in wsproj, 'workstation build bundles offline web demo assets')
 wsproj=(workstation/'SCOPX.Workstation.csproj').read_text(encoding='utf-8')
 check('net10.0-windows' in wsproj and 'UseWindowsForms' in wsproj, 'workstation is configured as Windows desktop WinForms app')
 check((ROOT/'docs/STEP-29-WINDOWS-WORKSTATION.md').exists(), 'Step 29 workstation documentation exists')
