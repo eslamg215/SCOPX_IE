@@ -27,3 +27,7 @@ The repository CI now builds a debug APK using Java 17, Android SDK 35, and Grad
 
 ## Step 81 — WebView navigation isolation
 The Android WebView now permits navigation and resource loading only from the bundled `https://appassets.androidplatform.net/assets/` origin. External origins, file URLs, JavaScript URLs, URL credentials, query strings, and fragments are rejected. Mixed content and file-origin access are disabled. JUnit regression tests run in CI.
+
+
+## Step 89 — Navigation edge cases
+The WebView allowlist rejects missing hosts, percent-encoded paths, and backslash path forms in addition to external origins and file URLs. JUnit regression tests cover these cases.
