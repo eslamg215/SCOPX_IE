@@ -69,3 +69,24 @@ After a new service-worker build is installed, the updated cached shell activate
 
 ## Local data recovery at startup (Step 90)
 On startup, the app validates stored synthetic data. If the saved structure is malformed or unsupported, it restores the sample dataset rather than attempting to render unsafe or inconsistent records.
+
+
+## Step 93 — Device testing checklist
+### Android
+Follow the Android physical-device steps in `../SCOPX.Android/README.md`. The offline demo should open without server credentials and should use only synthetic records and images.
+
+### Windows
+1. Download and extract the `SCOPX.Workstation-win-x64-preview` artifact.
+2. Run the SCOPX workstation executable.
+3. Choose **Open Offline Demo**.
+4. Confirm the bundled demo opens in the default browser and can be used without a running API.
+
+### Safe test sequence
+- Create a synthetic patient and procedure.
+- Start and complete the procedure; confirm a draft demo report appears.
+- Upload only a synthetic raster image within the 2 MiB limit.
+- Export a JSON demo backup.
+- Test the offline app shell.
+- Reset the synthetic dataset only after saving any demo backup you want to keep.
+
+Do not enter real patient details, clinical findings, or real endoscopy images. These steps verify the preview UI only; they do not validate capture hardware, clinical workflow, or production deployment.
