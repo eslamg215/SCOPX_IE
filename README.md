@@ -269,3 +269,14 @@ Synthetic data only. Development scaffold; not production-ready or clinically va
 - See `docs/STEP-67-AUTHENTICATION-LOCKOUT-AND-PASSWORD-POLICY-REVIEW.md`.
 
 Synthetic data only. Development scaffold; not production-ready or clinically validated.
+
+
+## Step 68 — Windows workstation API transport security
+
+- The workstation now requires HTTPS for remote API endpoints; plain HTTP is accepted only for loopback development.
+- API base URLs containing user-info credentials, query strings, or fragments are rejected before connection.
+- Offline structural checks guard the policy and its use by the workstation form.
+- This does not configure server TLS, certificate pinning, or production ingress; Windows runtime smoke testing remains outstanding.
+- See `docs/STEP-68-WORKSTATION-API-TRANSPORT-SECURITY.md`.
+
+Synthetic data only. Development scaffold; not production-ready or clinically validated.
