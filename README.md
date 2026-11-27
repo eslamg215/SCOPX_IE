@@ -311,3 +311,13 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - These tests exercise only the in-memory simulator; they do not connect to USB/HDMI/network devices or create media.
 - Hardware drivers, frame integrity/timing, and clinical recording remain unimplemented and unvalidated.
 - See [Step 71 capture adapter lifecycle tests](docs/STEP-71-CAPTURE-ADAPTER-LIFECYCLE-TESTS.md).
+
+
+## Step 72 — Capture-device descriptor validation
+
+- Added a pure validation policy for adapter-supplied device metadata before it is displayed or consumed.
+- Enforces bounded text fields, rejects control characters and unknown enum values, and prevents physical transports from using the simulator identity.
+- Requires simulator descriptors to carry the explicit “No Video” label.
+- Added synthetic regression cases for valid USB/simulator descriptors and malformed, oversized, spoofed, and unknown-enum metadata.
+- No physical devices were enumerated or accessed; no media or clinical data was used.
+- See [Step 72 capture descriptor validation](docs/STEP-72-CAPTURE-DESCRIPTOR-VALIDATION.md).
