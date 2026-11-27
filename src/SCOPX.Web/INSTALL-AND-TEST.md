@@ -29,3 +29,7 @@ Run `python3 ../scripts/tests/validate_project.py` and `python3 ../scripts/tests
 
 ## Windows workstation preview
 The Windows workstation preview includes a button named **Open Offline Demo**. It opens the bundled `SCOPX.Web/index.html` in the default browser. The web files are copied beside the workstation executable under `DemoWeb/` during build. This is the full offline synthetic-data demo; the WinForms Patients/Procedures/Reports/Media cards remain placeholders.
+
+
+## Automated browser acceptance coverage
+The CI browser smoke test exercises synthetic patient creation, procedure state transitions, report generation, synthetic image upload, JSON export contents, local-storage persistence after reload, and a narrow mobile viewport. These checks validate the offline demo only, not clinical behavior.
