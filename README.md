@@ -301,3 +301,13 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - The policy is not a capture driver or recording engine and does not create or finalize media files.
 - Media routes remain disabled; no hardware or clinical recording was used.
 - See [Step 70 recording lifecycle state machine](docs/STEP-70-RECORDING-LIFECYCLE-STATE-MACHINE.md).
+
+
+## Step 71 — Deterministic capture-adapter lifecycle checks
+
+- Linked the existing capture contract and simulator into the portable regression test project.
+- Hardened the no-video simulator to honor cancellation and reject operations after disposal or outside its ready state.
+- Added regression checks for ready/start/status/stop, duplicate start, invalid dimensions, cancellation, and disposal.
+- These tests exercise only the in-memory simulator; they do not connect to USB/HDMI/network devices or create media.
+- Hardware drivers, frame integrity/timing, and clinical recording remain unimplemented and unvalidated.
+- See [Step 71 capture adapter lifecycle tests](docs/STEP-71-CAPTURE-ADAPTER-LIFECYCLE-TESTS.md).
