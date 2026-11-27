@@ -4,7 +4,7 @@
 Run real browser interaction tests for the standalone synthetic-data web demo in CI.
 
 ## Changes
-- Added an Ubuntu workflow job with Python, pinned Playwright 1.55.0, and Playwright-managed Chromium.
+- Added an Ubuntu workflow job with Python, pinned Playwright 1.55.0, and Playwright-managed Chromium. CI sets `SCOPX_REQUIRE_BROWSER=1` so browser failures cannot silently turn into skips.
 - Removed the hard-coded system Chromium path from the smoke script.
 - Added a wait for asynchronous FileReader/media rendering before asserting the gallery result.
 
