@@ -32,4 +32,15 @@ class ApiEndpointPolicyTest {
         assertFalse(ApiEndpointPolicy.isAllowedBaseUrl(" https://api.scopx.example"))
         assertFalse(ApiEndpointPolicy.isAllowedBaseUrl("not a url"))
     }
+
+    @Test
+    fun requestMustStayOnTheConfiguredHttpsOrigin() {
+        val base = "https://api.scopx.example:8443"
+        assertTrue(ApiEndpointPolicy.isAllowedRequestUrl(base, "https://api.scopx.example:8443/api/v1/auth/login"))
+        assertFalse(ApiEndpointPolicy.isAllowedRequestUrl(base, "https://other.scopx.example:8443/api/v1/auth/login"))
+        assertFalse(ApiEndpointPolicy.isAllowedRequestUrl(base, "http://api.scopx.example:8443/api/v1/auth/login"))
+        assertFalse(ApiEndpointPolicy.isAllowedRequestUrl(base, "https://user@api.scopx.example:8443/api/v1/auth/login"))
+        assertFalse(ApiEndpointPolicy.isAllowedRequestUrl(base, "https://api.scopx.example:8443/api/v1/auth/login?x=1"))
+        assertFalse(ApiEndpointPolicy.isAllowedRequestUrl(base, "https://api.scopx.example:8443/other/path"))
+    }
 }
