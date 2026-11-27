@@ -449,6 +449,14 @@ if descriptor_policy.exists():
     check('Enum.IsDefined' in dp and 'char.IsControl' in dp, 'capture descriptor policy rejects unknown enums and control characters')
     check('simulator://' in dp and 'No Video' in dp, 'capture simulator metadata must be explicitly distinguished from hardware')
 check('CaptureDeviceDescriptorPolicy.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'descriptor validation policy is linked into portable regression tests')
+options_policy=WORKSTATION/'Devices/CaptureStartOptionsPolicy.cs'
+check(options_policy.exists(), 'capture start-options policy exists')
+if options_policy.exists():
+    op=options_policy.read_text(encoding='utf-8')
+    check('7680' in op and '4320' in op and '120' in op, 'capture start-options policy bounds dimensions and frame rate')
+    check('"MJPEG"' in op and '"YUY2"' in op and '"NV12"' in op, 'capture start-options policy uses an explicit pixel-format allowlist')
+check('CaptureStartOptionsPolicy.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'capture start-options policy is linked into portable regression tests')
+
 
 
 
