@@ -242,6 +242,26 @@ RequireThrows<CryptographicException>(() => rotationProtector.Decrypt(hospitalId
 RequireThrows<CryptographicException>(() => rotationProtector.Decrypt(Guid.NewGuid(), mediaId, encryptedWithB),
     "media ciphertext cannot be moved across hospital tenants");
 
+var jpegFixture = new byte[] { 0xFF, 0xD8, 0xFF, 0x00 };
+var pngFixture = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+var webpFixture = Encoding.ASCII.GetBytes("RIFF\0\0\0\0WEBP");
+var mp4Fixture = Encoding.ASCII.GetBytes("\0\0\0\x18ftypisom");
+var webmFixture = new byte[] { 0x1A, 0x45, 0xDF, 0xA3, 0x00 };
+Require(MediaFileSignatureValidator.Matches(".jpg", jpegFixture, out var jpegType, out var jpegContent) && jpegType == "image" && jpegContent == "image/jpeg",
+    "JPEG media signature is accepted and assigned a server-derived content type");
+Require(MediaFileSignatureValidator.Matches(".png", pngFixture, out _, out var pngContent) && pngContent == "image/png",
+    "PNG media signature is accepted");
+Require(MediaFileSignatureValidator.Matches(".webp", webpFixture, out _, out var webpContent) && webpContent == "image/webp",
+    "WebP media signature is accepted");
+Require(MediaFileSignatureValidator.Matches(".mp4", mp4Fixture, out var mp4Type, out var mp4Content) && mp4Type == "video" && mp4Content == "video/mp4",
+    "MP4 media signature is accepted");
+Require(MediaFileSignatureValidator.Matches(".webm", webmFixture, out _, out var webmContent) && webmContent == "video/webm",
+    "WebM media signature is accepted");
+Require(!MediaFileSignatureValidator.Matches(".jpg", pngFixture, out _, out _),
+    "media extension and content signature mismatch is rejected");
+Require(!MediaFileSignatureValidator.Matches(".exe", jpegFixture, out _, out _),
+    "unsupported media extension is rejected");
+
 CryptographicOperations.ZeroMemory(mediaKeyA);
 CryptographicOperations.ZeroMemory(mediaKeyB);
 
