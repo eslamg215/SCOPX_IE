@@ -587,6 +587,8 @@ if (web/'app.js').exists():
     wa=(web/'app.js').read_text(encoding='utf-8')
     check('function isValidDemoBackup' in wa and 'procedureIds.has' in wa and 'data:image/' in wa, 'demo backup import validates record relationships and media data')
     check('schemaVersion:1' in wa and '[undefined,1].includes(value.schemaVersion)' in wa, 'demo backups are versioned while legacy versionless backups remain importable')
+    check('id="resetDemoData"' in wi and 'if(!confirm(' in wa and 'structuredClone(demoSeed)' in wa, 'demo reset requires explicit confirmation and restores the synthetic seed')
+
 
     check('function detectDemoImageType' in wa and '0x89' in wa and '0xff' in wa and '0x57' in wa, 'demo media upload verifies PNG/JPEG/GIF/WebP file signatures')
     check('isSafeDemoImageDataUrl' in wa and 'image/svg' not in wa, 'demo media import accepts bounded base64 raster images only')
