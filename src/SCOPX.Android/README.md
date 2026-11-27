@@ -16,3 +16,7 @@ This is an offline Android wrapper around the responsive SCOPX.I.E demo web clie
 
 ## Limitations
 This environment does not have Android SDK or Gradle installed, so APK compilation and device testing have not been completed. This project is a build-ready wrapper source, not an APK. Clinical functionality, hardware capture, backend connectivity, and security validation are not enabled.
+
+
+## CI APK preview
+The repository CI now builds a debug APK using Java 17, Android SDK 35, and Gradle 8.9. Download the `SCOPX.Android-debug-preview` artifact from the successful GitHub Actions run. The APK is for synthetic-data testing only and is not production-signed.
