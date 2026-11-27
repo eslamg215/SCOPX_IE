@@ -504,3 +504,7 @@ Expanded Windows publish verification to require the PWA manifest and icon in ad
 
 ## Step 93 — Physical preview test instructions
 Added a controlled Android/Windows device test checklist for installing and exercising the debug/offline demo packages using synthetic data only. See [Step 93 report](docs/STEP-93-PHYSICAL-PREVIEW-CHECKLIST.md).
+
+
+## Step 95 — Storage quota failure regression
+The browser acceptance suite now forces a Local Storage quota error during a synthetic patient save and verifies that the change is rolled back and the form is not reported as saved. See [Step 95 report](docs/STEP-95-STORAGE-FAILURE-REGRESSION.md).
