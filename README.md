@@ -457,3 +457,7 @@ The offline demo now retains the last successfully persisted JSON snapshot. If b
 
 ## Step 84 — Demo image upload validation
 The local demo image uploader now checks file signatures for PNG, JPEG, GIF, and WebP instead of trusting the browser-provided MIME type. SVG and unsupported formats are rejected, and imported backup media must use a bounded base64 raster-image data URL. See [Step 84 report](docs/STEP-84-DEMO-IMAGE-VALIDATION.md).
+
+
+## Step 85 — Versioned demo backups
+New JSON backups include schema version 1. Import accepts current version 1 and legacy backups without a version, but rejects unknown future versions rather than silently interpreting them. See [Step 85 report](docs/STEP-85-VERSIONED-DEMO-BACKUPS.md).
