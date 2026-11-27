@@ -434,6 +434,15 @@ if recording_policy.exists():
     check('public static bool IsAllowed' in rp and 'public static RecordingLifecycleState Transition' in rp, 'recording lifecycle exposes pure transition validation')
     check('no' not in rp.lower() or 'does not open devices' in rp, 'recording lifecycle policy is not a hardware driver')
 check('RecordingLifecyclePolicy.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'recording lifecycle policy is linked into portable regression tests')
+capture_contract=WORKSTATION/'Devices/DeviceCaptureContracts.cs'
+check(capture_contract.exists(), 'capture adapter contract and no-video simulator exist')
+if capture_contract.exists():
+    cc=capture_contract.read_text(encoding='utf-8')
+    check('IDeviceCaptureAdapter' in cc and 'SimulatorCaptureAdapter' in cc, 'capture provider interface and deterministic simulator are declared')
+    check('cancellationToken.ThrowIfCancellationRequested()' in cc, 'simulator status/start/stop operations honor cancellation')
+    check('_state == CaptureState.Disconnected' in cc and 'ObjectDisposedException' in cc, 'disposed simulator cannot be restarted or stopped')
+check('DeviceCaptureContracts.cs' in (ROOT/'src/SCOPX.SecurityTests/SCOPX.SecurityTests.csproj').read_text(encoding='utf-8'), 'capture contracts are linked into portable regression tests')
+
 
 # Membership repository tenant-context repair checks
 membership_repo=hosp/'NpgsqlHospitalMembershipRepository.cs'
