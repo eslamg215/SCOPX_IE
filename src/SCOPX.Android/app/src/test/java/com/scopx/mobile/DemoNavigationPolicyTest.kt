@@ -22,6 +22,9 @@ class DemoNavigationPolicyTest {
         assertFalse(DemoNavigationPolicy.isAllowed("file:///android_asset/index.html"))
         assertFalse(DemoNavigationPolicy.isAllowed("javascript:alert(1)"))
         assertFalse(DemoNavigationPolicy.isAllowed("https://user@appassets.androidplatform.net/assets/scopx/index.html"))
+        assertFalse(DemoNavigationPolicy.isAllowed("https:///assets/scopx/index.html"))
+        assertFalse(DemoNavigationPolicy.isAllowed("https://appassets.androidplatform.net/assets/%2e%2e/secret"))
+        assertFalse(DemoNavigationPolicy.isAllowed("https://appassets.androidplatform.net/assets\\\\..\\\\secret"))
     }
 
     @Test
