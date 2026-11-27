@@ -33,3 +33,7 @@ The Windows workstation preview includes a button named **Open Offline Demo**. I
 
 ## Automated browser acceptance coverage
 The CI browser smoke test exercises synthetic patient creation, procedure state transitions, report generation, synthetic image upload, JSON export contents, local-storage persistence after reload, and a narrow mobile viewport. These checks validate the offline demo only, not clinical behavior.
+
+
+## Offline cache safety
+The service worker caches only the app's same-origin static shell. It does not intercept cross-origin requests or non-GET requests, and it only falls back to the cached index for navigation requests. Cache cleanup is limited to SCOPX demo cache names.
