@@ -473,3 +473,7 @@ Added a visible-on-focus skip link, keyboard focus indicators, active navigation
 
 ## Step 88 — PWA offline shell update
 Bumped the service-worker cache version, enabled safe activation of the updated app shell, and claimed controlled clients after activation. Browser acceptance tests now reload the demo while offline after the cache is populated. See [Step 88 report](docs/STEP-88-PWA-OFFLINE-UPDATE.md).
+
+
+## Step 89 — Android WebView URL edge-case hardening
+Hardened the bundled-asset navigation allowlist for malformed host values, percent-encoded paths, and backslash path forms. Added regression tests for these cases. See [Step 89 report](docs/STEP-89-ANDROID-NAVIGATION-EDGE-CASES.md).
