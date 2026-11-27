@@ -145,6 +145,27 @@ jobs:
       - name: Build Android debug APK
         run: gradle --no-daemon -p src/SCOPX.Android assembleDebug
 
+      - name: Verify bundled web demo assets inside Android APK
+        run: |
+          python - <<'PY'
+          import zipfile
+          apk = "src/SCOPX.Android/app/build/outputs/apk/debug/app-debug.apk"
+          required = {
+              "assets/scopx/index.html",
+              "assets/scopx/styles.css",
+              "assets/scopx/app.js",
+              "assets/scopx/manifest.webmanifest",
+              "assets/scopx/sw.js",
+              "assets/scopx/assets/icon.svg",
+          }
+          with zipfile.ZipFile(apk) as archive:
+              actual = set(archive.namelist())
+          missing = sorted(required - actual)
+          if missing:
+              raise SystemExit("APK missing bundled demo assets: " + ", ".join(missing))
+          print("Android APK contains all six offline demo runtime assets.")
+          PY
+
       - name: Upload Android debug APK preview
         uses: actions/upload-artifact@v4
         with:
