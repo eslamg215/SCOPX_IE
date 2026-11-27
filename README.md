@@ -358,3 +358,12 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - Added deterministic simulator/fault-provider tests for normal stop, repeated stop, fault cleanup, and refusal to stop a disconnected provider.
 - Real hardware stop/recovery semantics still require vendor-specific validation.
 - See [Step 76 capture stop and cleanup policy](docs/STEP-76-CAPTURE-STOP-CLEANUP-POLICY.md).
+
+
+## Step 77 — Capture adapter state-matrix regression completion
+
+- Expanded deterministic coverage for disconnected-provider start/stop refusal, future status timestamps, and idempotent disposal.
+- Confirmed faulted providers may receive a stop cleanup attempt but never a start request.
+- Added structural guards for disconnected/faulted handling and one-time disposal.
+- Tests remain simulator/fake-only; no real device or media is involved.
+- See [Step 77 capture adapter state matrix](docs/STEP-77-CAPTURE-ADAPTER-STATE-MATRIX.md).
