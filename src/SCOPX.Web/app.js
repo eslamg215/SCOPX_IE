@@ -57,8 +57,25 @@
   $('#mediaForm').addEventListener('submit',e=>{e.preventDefault();const file=e.target.elements.file.files[0];if(!file)return;if(file.size>2*1024*1024){alert('حجم الصورة أكبر من 2 ميجابايت.');return;}if(!file.type.startsWith('image/')){alert('الملف يجب أن يكون صورة.');return;}const reader=new FileReader();reader.onload=()=>{try{data.media.unshift({id:'media-'+Date.now(),procedureId:e.target.elements.procedureId.value||null,caption:e.target.elements.caption.value.trim(),dataUrl:reader.result,createdAt:today(),fileName:file.name});save();e.target.reset();$('#mediaDialog').close();setView('media');}catch(err){alert('تعذر حفظ الصورة: المساحة المحلية قد تكون ممتلئة.');}};reader.readAsDataURL(file);});
   $('#closeMedia').onclick=$('#cancelMedia').onclick=()=>$('#mediaDialog').close();
   $('#exportData').onclick=()=>{const blob=new Blob([JSON.stringify({...data,exportedAt:new Date().toISOString(),exportType:'SCOPX.I.E DEMO ONLY'},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='scopx-demo-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+  function isValidDemoBackup(value){
+    const isObject=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+    const isText=(v,max)=>typeof v==='string'&&v.length>0&&v.length<=max;
+    if(!isObject(value)||!Array.isArray(value.patients)||!Array.isArray(value.procedures)||!Array.isArray(value.reports))return false;
+    const media=Array.isArray(value.media)?value.media:[];
+    const {patients,procedures,reports}=value;
+    if(patients.length>500||procedures.length>2000||reports.length>2000||media.length>500)return false;
+    const uniqueIds=items=>items.every((item,index)=>isObject(item)&&isText(item.id,100)&&items.findIndex(other=>other.id===item.id)===index);
+    if(!uniqueIds(patients)||!uniqueIds(procedures)||!uniqueIds(reports)||!uniqueIds(media))return false;
+    const patientIds=new Set(patients.map(item=>item.id));
+    const procedureIds=new Set(procedures.map(item=>item.id));
+    if(!patients.every(p=>isText(p.name,80)&&isText(p.record,30)&&(p.age===null||p.age===undefined||(Number.isInteger(p.age)&&p.age>=0&&p.age<=120))&&(p.note===undefined||typeof p.note==='string'&&p.note.length<=250)))return false;
+    if(!procedures.every(p=>patientIds.has(p.patientId)&&isText(p.title,80)&&(p.doctor===undefined||typeof p.doctor==='string'&&p.doctor.length<=80)&&['scheduled','in_progress','completed'].includes(p.status)))return false;
+    if(!reports.every(r=>procedureIds.has(r.procedureId)&&isText(r.title,120)&&['draft','review'].includes(r.status)&&typeof r.body==='string'&&r.body.length<=4000))return false;
+    if(!media.every(m=>(m.procedureId===null||m.procedureId===undefined||procedureIds.has(m.procedureId))&&typeof m.dataUrl==='string'&&m.dataUrl.startsWith('data:image/')&&m.dataUrl.length<=3000000&&(m.caption===undefined||typeof m.caption==='string'&&m.caption.length<=100)))return false;
+    return true;
+  }
   $('#importData').onclick=()=>$('#importFile').click();
-  $('#importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const incoming=JSON.parse(await file.text());if(!Array.isArray(incoming.patients)||!Array.isArray(incoming.procedures)||!Array.isArray(incoming.reports))throw new Error('ملف غير متوافق');if(!confirm('سيتم استبدال بيانات العرض المحلية الحالية. هل تريد المتابعة؟'))return;data={patients:incoming.patients,procedures:incoming.procedures,reports:incoming.reports,media:Array.isArray(incoming.media)?incoming.media:[]};save();setView('dashboard');alert('تم استيراد بيانات العرض.');}catch(err){alert('فشل الاستيراد: الملف غير صالح أو غير متوافق.');}e.target.value='';});
+  $('#importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const incoming=JSON.parse(await file.text());if(!isValidDemoBackup(incoming))throw new Error('ملف غير متوافق');if(!confirm('سيتم استبدال بيانات العرض المحلية الحالية. هل تريد المتابعة؟'))return;data={patients:incoming.patients,procedures:incoming.procedures,reports:incoming.reports,media:Array.isArray(incoming.media)?incoming.media:[]};save();setView('dashboard');alert('تم استيراد بيانات العرض.');}catch(err){alert('فشل الاستيراد: الملف غير صالح أو غير متوافق.');}e.target.value='';});
   render();
   if('serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
