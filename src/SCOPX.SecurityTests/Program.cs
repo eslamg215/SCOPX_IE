@@ -327,6 +327,34 @@ await using (var simulator = new SimulatorCaptureAdapter())
         "disposed capture simulator cannot be restarted");
 }
 
+// Step 72: validate adapter-provided descriptors as untrusted display metadata.
+var simulatorDescriptor = new SimulatorCaptureAdapter().Descriptor;
+Require(CaptureDeviceDescriptorPolicy.IsValid(simulatorDescriptor, out _),
+    "capture descriptor policy accepts the explicitly labelled no-video simulator");
+var syntheticUsbDescriptor = new CaptureDeviceDescriptor(
+    "usb:synthetic-device-01", "Synthetic USB Capture Adapter", CaptureTransport.Usb,
+    "Synthetic Vendor", "Test Model", CaptureState.Ready);
+Require(CaptureDeviceDescriptorPolicy.IsValid(syntheticUsbDescriptor, out _),
+    "capture descriptor policy accepts bounded synthetic USB metadata");
+Require(!CaptureDeviceDescriptorPolicy.IsValid(
+    syntheticUsbDescriptor with { DisplayName = "  " }, out _),
+    "capture descriptor policy rejects blank display names");
+Require(!CaptureDeviceDescriptorPolicy.IsValid(
+    syntheticUsbDescriptor with { DisplayName = "Unsafe\\nDevice" }, out _),
+    "capture descriptor policy rejects control characters in metadata");
+Require(!CaptureDeviceDescriptorPolicy.IsValid(
+    syntheticUsbDescriptor with { Transport = (CaptureTransport)999 }, out _),
+    "capture descriptor policy rejects unknown transport enum values");
+Require(!CaptureDeviceDescriptorPolicy.IsValid(
+    syntheticUsbDescriptor with { DeviceId = "simulator://spoofed" }, out _),
+    "physical capture descriptors cannot spoof the simulator identifier");
+Require(!CaptureDeviceDescriptorPolicy.IsValid(
+    simulatorDescriptor with { DisplayName = "SCOPX Capture Device" }, out _),
+    "simulator transport must remain explicitly labelled No Video");
+Require(!CaptureDeviceDescriptorPolicy.IsValid(
+    syntheticUsbDescriptor with { CompatibilityNote = new string('x', 501) }, out _),
+    "capture descriptor policy enforces compatibility-note length bounds");
+
 CryptographicOperations.ZeroMemory(mediaKeyA);
 CryptographicOperations.ZeroMemory(mediaKeyB);
 
