@@ -5,6 +5,7 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from threading import Thread
 from urllib.request import urlopen
 import json
+import os
 import tempfile
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[2]/'src'/'SCOPX.Web'
@@ -82,6 +83,8 @@ try:
     except Exception as e:
         browser_available=False
         print(f'SKIP: browser-interaction tests unavailable in this environment ({type(e).__name__}: {e})')
+        if os.environ.get('SCOPX_REQUIRE_BROWSER') == '1':
+            raise
 finally:
     server.shutdown()
 fail=sum(not ok for ok,_ in checks)
