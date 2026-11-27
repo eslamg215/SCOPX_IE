@@ -439,6 +439,15 @@ await using (var guardedFaultedAdapter = new ValidatedCaptureAdapter(faultedAdap
     Require(faultedAdapter.StopCalls == 1,
         "validated adapter forwards stop as a cleanup attempt when provider is Faulted");
 }
+var disconnectedAdapter = new FaultedCaptureAdapter { ReportedState = CaptureState.Disconnected };
+await using (var guardedDisconnectedAdapter = new ValidatedCaptureAdapter(disconnectedAdapter))
+{
+    await RequireThrowsAsync<InvalidOperationException>(
+        () => guardedDisconnectedAdapter.StopAsync(),
+        "validated adapter refuses to stop a disconnected provider");
+    Require(disconnectedAdapter.StopCalls == 0,
+        "disconnected provider is not called for stop");
+}
 
 await RunClamAvFixtureAsync("stream: OK", true, "ClamAV INSTREAM clean response is accepted");
 await RunClamAvFixtureAsync("stream: Eicar-Test-Signature FOUND", false, "ClamAV INSTREAM infected response is rejected");
