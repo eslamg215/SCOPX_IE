@@ -61,3 +61,7 @@ Use **إعادة الضبط** only when you want to discard locally added demo r
 
 ## Keyboard navigation (Step 87)
 Press Tab from the top of the page to reach **تخطي إلى المحتوى الرئيسي**, then press Enter to move focus into the main content. Navigation controls expose their active and expanded state to assistive technology.
+
+
+## Offline app-shell update (Step 88)
+After a new service-worker build is installed, the updated cached shell activates and takes control of open app pages. The browser acceptance suite verifies that the demo can reload from the cache while offline. Locally entered synthetic data remains in browser Local Storage; export backups separately.
