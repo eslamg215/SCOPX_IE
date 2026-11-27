@@ -606,6 +606,8 @@ if (web/'app.js').exists():
     check('patients.length>500' in wa and 'media.length>500' in wa and 'procedures.length>2000' in wa, 'demo backup import enforces bounded record counts')
     check('localStorage' in wa and 'patientForm' in wa and 'procedureForm' in wa, 'demo client supports local storage and patient/procedure forms')
     check('lastPersistedJson' in wa and 'تعذر حفظ التغييرات محليًا' in wa, 'demo client restores last persisted snapshot when browser storage writes fail')
+    check('QuotaExceededError' in (ROOT/'scripts/tests/pwa_smoke_test.py').read_text(encoding='utf-8'), 'browser acceptance suite simulates local storage quota failure')
+
     check('if(!save())return' in wa and 'if(transition(id,\'completed\'))makeReport(id)' in wa, 'demo form and state transitions stop after failed persistence')
 
     check('scheduled' in wa and 'in_progress' in wa and 'completed' in wa and 'makeReport' in wa, 'demo procedure status flow and report preview generation included')
