@@ -388,6 +388,11 @@ await using (var guardedCapture = new ValidatedCaptureAdapter(new SimulatorCaptu
     await guardedCapture.StartAsync(new CaptureStartOptions(1280, 720, 30, "MJPEG"));
     Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Capturing,
         "validated adapter forwards an accepted start request");
+    await RequireThrowsAsync<InvalidOperationException>(
+        () => guardedCapture.StartAsync(new CaptureStartOptions(1280, 720, 30, "MJPEG")),
+        "validated adapter blocks a second start while the device is already capturing");
+    Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Capturing,
+        "rejected duplicate start leaves the active capture state unchanged");
     await guardedCapture.StopAsync();
     Require((await guardedCapture.GetStatusAsync()).State == CaptureState.Ready,
         "validated adapter forwards stop and observes the ready state");
@@ -407,6 +412,27 @@ await using (var optionsSimulator = new SimulatorCaptureAdapter())
 
 CryptographicOperations.ZeroMemory(mediaKeyA);
 CryptographicOperations.ZeroMemory(mediaKeyB);
+
+// Step 75: capture status validity and fault-state start gate.
+Require(CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Faulted, "synthetic adapter fault", DateTimeOffset.UtcNow)),
+    "capture status policy accepts a well-formed fault status for diagnostics");
+Require(!CaptureStatusPolicy.IsValid(new CaptureStatus((CaptureState)999, "bad state", DateTimeOffset.UtcNow)),
+    "capture status policy rejects unknown state enum values");
+Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, null, default)),
+    "capture status policy rejects a missing update timestamp");
+Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, new string('x', 501), DateTimeOffset.UtcNow)),
+    "capture status policy rejects oversized status messages");
+Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, "bad\\nmessage", DateTimeOffset.UtcNow)),
+    "capture status policy rejects control characters in status messages");
+var faultedAdapter = new FaultedCaptureAdapter();
+await using (var guardedFaultedAdapter = new ValidatedCaptureAdapter(faultedAdapter))
+{
+    await RequireThrowsAsync<InvalidOperationException>(
+        () => guardedFaultedAdapter.StartAsync(new CaptureStartOptions(640, 480, 30)),
+        "validated adapter refuses to start when the provider reports Faulted");
+    Require(faultedAdapter.StartCalls == 0,
+        "faulted adapter start request is blocked before reaching the provider");
+}
 
 await RunClamAvFixtureAsync("stream: OK", true, "ClamAV INSTREAM clean response is accepted");
 await RunClamAvFixtureAsync("stream: Eicar-Test-Signature FOUND", false, "ClamAV INSTREAM infected response is rejected");
@@ -1141,3 +1167,33 @@ sealed class FakeHospitalMembershipRepository(Guid ownerId, IEnumerable<Hospital
             : null);
 }
 
+
+
+sealed class FaultedCaptureAdapter : IDeviceCaptureAdapter
+{
+    public int StartCalls { get; private set; }
+    public CaptureDeviceDescriptor Descriptor => new(
+        "usb:synthetic-faulted-device", "Synthetic Faulted Capture Adapter",
+        CaptureTransport.Usb, "Synthetic Vendor", "Fault Test", CaptureState.Faulted);
+
+    public Task<CaptureStatus> GetStatusAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new CaptureStatus(CaptureState.Faulted, "Synthetic fault", DateTimeOffset.UtcNow));
+    }
+
+    public Task StartAsync(CaptureStartOptions options, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        StartCalls++;
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
