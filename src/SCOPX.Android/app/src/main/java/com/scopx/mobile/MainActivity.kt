@@ -52,6 +52,10 @@ class MainActivity : AppCompatActivity() {
     private fun signIn(){
         val base=baseUrl.text.toString().trim().trimEnd('/'); val userEmail=email.text.toString().trim(); val pass=password.text.toString()
         if(base.isBlank()||userEmail.isBlank()||pass.isBlank()){status.text="Enter server URL and credentials.";return}
+        if (!ApiEndpointPolicy.isAllowedBaseUrl(base)) {
+            status.text = "Use an HTTPS API base URL without credentials, path, query, or fragment."
+            return
+        }
         status.text="Connecting…"
         executor.execute { try {
             val body=JSONObject().put("email",userEmail).put("password",pass).toString()
