@@ -125,6 +125,14 @@
     return true;
   }
   $('#importData').onclick=()=>$('#importFile').click();
+  $('#resetDemoData').onclick=()=>{
+    if(!confirm('سيتم حذف سجلات العرض المحلية وإعادتها إلى البيانات التجريبية الافتراضية. هل تريد المتابعة؟'))return;
+    const previous=data;
+    data=structuredClone(demoSeed);
+    if(!save()){data=previous;return;}
+    setView('dashboard');
+    alert('تمت إعادة بيانات العرض التجريبية.');
+  };
   $('#importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size<=0||file.size>MAX_DEMO_BACKUP_BYTES)throw new Error('Backup file size is outside the allowed limit');const incoming=JSON.parse(await file.text());if(!isValidDemoBackup(incoming))throw new Error('ملف غير متوافق');if(!confirm('سيتم استبدال بيانات العرض المحلية الحالية. هل تريد المتابعة؟'))return;data={patients:incoming.patients,procedures:incoming.procedures,reports:incoming.reports,media:Array.isArray(incoming.media)?incoming.media:[]};if(!save())return;setView('dashboard');alert('تم استيراد بيانات العرض.');}catch(err){alert('فشل الاستيراد: الملف غير صالح أو غير متوافق.');}e.target.value='';});
   render();
   if('serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
