@@ -18,7 +18,7 @@ object DemoNavigationPolicy {
                 && uri.host?.equals(ASSET_HOST, ignoreCase = true) == true
                 && uri.port == -1
                 && path == decodedPath
-                && !path.contains('\\\\')
+                && !path.contains('\\')
                 && uri.rawUserInfo == null
                 && uri.rawQuery == null
                 && uri.rawFragment == null
