@@ -280,3 +280,15 @@ Synthetic data only. Development scaffold; not production-ready or clinically va
 - See `docs/STEP-68-WORKSTATION-API-TRANSPORT-SECURITY.md`.
 
 Synthetic data only. Development scaffold; not production-ready or clinically validated.
+
+
+## Step 69 — Medical media and endoscopy capture security review
+
+- Confirmed media API routes remain unmapped; the protected-media code is not an enabled recording service.
+- Added synthetic file-signature regression tests for JPEG, PNG, WebP, MP4, and WebM, including mismatch and unsupported-extension rejection.
+- Extended structural checks for upload limits, encrypted-buffer cleanup, create-new storage writes, transactional media audit events, tenant context, and simulator-only capture.
+- Documented remaining blockers: memory-buffered media transfer, plaintext response-buffer lifetime, production storage/KMS/backup controls, real ClamAV operations, and unvalidated hardware drivers.
+- Retention/deletion migrations remain drafts; no deletion worker or physical deletion is enabled.
+- See [Step 69 media and capture security review](docs/STEP-69-MEDICAL-MEDIA-AND-CAPTURE-SECURITY-REVIEW.md).
+
+Synthetic data and protocol fixtures only. No real capture device or clinical recording was used. Not clinically validated or production-ready.
