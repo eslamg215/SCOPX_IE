@@ -440,6 +440,8 @@ if pwa_smoke.exists():
     check('executable_path=' not in ps, 'browser smoke test uses the Playwright-managed Chromium binary')
 if workflow_file.exists():
     check('pwa-demo-smoke:' in wf_text and 'playwright install --with-deps chromium' in wf_text and 'pwa_smoke_test.py' in wf_text, 'CI runs the offline browser acceptance suite with managed Chromium')
+    pwa_block=wf_text.split('pwa-demo-smoke:',1)[1].split('postgres-security-smoke:',1)[0]
+    check('runs-on: ubuntu-24.04' in pwa_block, 'Playwright browser job uses an officially supported Ubuntu image')
     check('SCOPX_REQUIRE_BROWSER: "1"' in wf_text, 'CI fails rather than skipping browser interaction tests')
     check('python-version: "3.12"' in wf_text, 'browser acceptance job uses a stable Python runtime')
 
