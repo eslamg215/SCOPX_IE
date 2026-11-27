@@ -293,6 +293,7 @@ check('report-version RLS failed' in report_smoke and 'signed report mutation wa
 
 # Step 29 Windows workstation shell checks
 workstation=ROOT/'src/SCOPX.Workstation'
+wsproj=(workstation/'SCOPX.Workstation.csproj').read_text(encoding='utf-8')
 check((workstation/'SCOPX.Workstation.csproj').exists(), 'Windows workstation project exists')
 wf=workstation/'WorkstationForm.cs'
 check(wf.exists(), 'workstation shell form source exists')
