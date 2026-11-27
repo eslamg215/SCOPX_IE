@@ -477,3 +477,7 @@ Bumped the service-worker cache version, enabled safe activation of the updated 
 
 ## Step 89 — Android WebView URL edge-case hardening
 Hardened the bundled-asset navigation allowlist for malformed host values, percent-encoded paths, and backslash path forms. Added regression tests for these cases. See [Step 89 report](docs/STEP-89-ANDROID-NAVIGATION-EDGE-CASES.md).
+
+
+## Step 90 — Startup validation of local demo state
+The app now validates the persisted browser dataset against the same bounded schema used for backup import before rendering it. Invalid or corrupted local demo state is replaced with the synthetic starter dataset. Browser acceptance tests cover malformed stored data recovery. See [Step 90 report](docs/STEP-90-LOCAL-STATE-VALIDATION.md).
