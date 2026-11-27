@@ -586,6 +586,10 @@ if (web/'index.html').exists():
 if (web/'app.js').exists():
     wa=(web/'app.js').read_text(encoding='utf-8')
     check('function isValidDemoBackup' in wa and 'procedureIds.has' in wa and 'data:image/' in wa, 'demo backup import validates record relationships and media data')
+    check('function detectDemoImageType' in wa and '0x89' in wa and '0xff' in wa and '0x57' in wa, 'demo media upload verifies PNG/JPEG/GIF/WebP file signatures')
+    check('isSafeDemoImageDataUrl' in wa and 'image/svg' not in wa, 'demo media import accepts bounded base64 raster images only')
+    check('file.arrayBuffer()' in wa and 'detectedType' in wa, 'demo media upload does not trust browser-provided MIME type')
+
     check('patients.length>500' in wa and 'media.length>500' in wa and 'procedures.length>2000' in wa, 'demo backup import enforces bounded record counts')
     check('localStorage' in wa and 'patientForm' in wa and 'procedureForm' in wa, 'demo client supports local storage and patient/procedure forms')
     check('lastPersistedJson' in wa and 'تعذر حفظ التغييرات محليًا' in wa, 'demo client restores last persisted snapshot when browser storage writes fail')
