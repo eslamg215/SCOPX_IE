@@ -57,3 +57,7 @@ New exports include `schemaVersion: 1`. Imports accept version 1 and legacy back
 
 ## Resetting the synthetic demo (Step 86)
 Use **إعادة الضبط** only when you want to discard locally added demo records and restore the sample dataset. The app asks for confirmation first. Export a JSON demo backup before resetting if you want to retain your test records.
+
+
+## Keyboard navigation (Step 87)
+Press Tab from the top of the page to reach **تخطي إلى المحتوى الرئيسي**, then press Enter to move focus into the main content. Navigation controls expose their active and expanded state to assistive technology.
