@@ -42,8 +42,8 @@ public sealed class SimulatorCaptureAdapter : IDeviceCaptureAdapter
         cancellationToken.ThrowIfCancellationRequested();
         if (_state == CaptureState.Disconnected) throw new ObjectDisposedException(nameof(SimulatorCaptureAdapter));
         if (_state != CaptureState.Ready) throw new InvalidOperationException("The simulator is not ready to start.");
-        if (options.Width is < 1 or > 7680 || options.Height is < 1 or > 4320 || options.FramesPerSecond is < 1 or > 120)
-            throw new ArgumentOutOfRangeException(nameof(options), "Requested capture settings are outside the safe test bounds.");
+        if (!CaptureStartOptionsPolicy.IsValid(options))
+            throw new ArgumentOutOfRangeException(nameof(options), "Requested capture settings are outside the supported test policy.");
         _state = CaptureState.Capturing;
         return Task.CompletedTask;
     }
