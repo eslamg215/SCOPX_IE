@@ -422,7 +422,7 @@ Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, null,
     "capture status policy rejects a missing update timestamp");
 Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, new string('x', 501), DateTimeOffset.UtcNow)),
     "capture status policy rejects oversized status messages");
-Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, "bad\\nmessage", DateTimeOffset.UtcNow)),
+Require(!CaptureStatusPolicy.IsValid(new CaptureStatus(CaptureState.Ready, "bad\nmessage", DateTimeOffset.UtcNow)),
     "capture status policy rejects control characters in status messages");
 var faultedAdapter = new FaultedCaptureAdapter();
 await using (var guardedFaultedAdapter = new ValidatedCaptureAdapter(faultedAdapter))
