@@ -123,6 +123,8 @@ try:
                     return original.call(this,key,value);
                 };
             })()""")
+            # At the mobile viewport the sidebar is collapsed; open it before navigation.
+            page.locator('#menuToggle').click()
             page.locator('[data-view="patients"]').first.click()
             page.locator('[data-open-patient]').first.click()
             page.locator('#patientForm input[name="name"]').fill('Should Not Persist')
