@@ -123,6 +123,9 @@ jobs:
       - name: Install Android SDK platform and build tools
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Run Android API endpoint policy unit tests
+        run: gradle --no-daemon -p src/SCOPX.Android testDebugUnitTest
+
       - name: Build Android debug APK
         run: gradle --no-daemon -p src/SCOPX.Android assembleDebug
 
