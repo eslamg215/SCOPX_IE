@@ -419,3 +419,11 @@ The browser smoke suite now exercises synthetic media upload, JSON backup conten
 
 ## Step 84 — PWA offline cache isolation
 The service worker now ignores cross-origin and non-GET requests, caches only known same-origin app-shell assets, limits offline document fallback to navigation, and only cleans up SCOPX-owned cache names. See [Step 84 report](docs/STEP-84-PWA-OFFLINE-CACHE-ISOLATION.md).
+
+
+## Step 83 — Automated offline browser acceptance
+
+- Added a dedicated Ubuntu CI job that installs Playwright-managed Chromium and runs the PWA acceptance suite.
+- The suite exercises dashboard rendering, synthetic patient/procedure/report workflows, image upload, JSON export, local-storage persistence, JavaScript errors, and mobile viewport overflow.
+- The media test now waits for asynchronous FileReader rendering before asserting.
+- See [Step 83 offline browser acceptance](docs/STEP-83-OFFLINE-BROWSER-ACCEPTANCE.md).
