@@ -427,3 +427,7 @@ The service worker now ignores cross-origin and non-GET requests, caches only kn
 - The suite exercises dashboard rendering, synthetic patient/procedure/report workflows, image upload, JSON export, local-storage persistence, JavaScript errors, and mobile viewport overflow.
 - The media test now waits for asynchronous FileReader rendering before asserting.
 - See [Step 83 offline browser acceptance](docs/STEP-83-OFFLINE-BROWSER-ACCEPTANCE.md).
+
+
+## Step 85 — Demo backup import validation
+JSON backup import now validates record shapes, unique IDs, linked patient/procedure references, status values, field lengths, image data URLs, and collection size limits before replacing local demo data. Browser acceptance tests include rejection of malformed backup data. See [Step 85 report](docs/STEP-85-DEMO-BACKUP-VALIDATION.md).
