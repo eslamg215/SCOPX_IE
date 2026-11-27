@@ -435,10 +435,12 @@ if pwa_smoke.exists():
     ps=pwa_smoke.read_text(encoding='utf-8')
     check('sync_playwright' in ps and 'page.wait_for_selector' in ps, 'browser smoke test uses Playwright and waits for asynchronous media rendering')
     check("SCOPX_REQUIRE_BROWSER" in ps, 'browser smoke test can require browser execution in CI')
+    check("filter(has_text='Smoke Test Procedure')" in ps, 'browser smoke test targets the newly created procedure instead of seeded records')
     check('executable_path=' not in ps, 'browser smoke test uses the Playwright-managed Chromium binary')
 if workflow_file.exists():
     check('pwa-demo-smoke:' in wf_text and 'playwright install --with-deps chromium' in wf_text and 'pwa_smoke_test.py' in wf_text, 'CI runs the offline browser acceptance suite with managed Chromium')
     check('SCOPX_REQUIRE_BROWSER: "1"' in wf_text, 'CI fails rather than skipping browser interaction tests')
+    check('python-version: "3.12"' in wf_text, 'browser acceptance job uses a stable Python runtime')
 
 # Step 79 Android debug APK preview checks
 workflow_file=ROOT/'.github/workflows/build-validation.yml'
