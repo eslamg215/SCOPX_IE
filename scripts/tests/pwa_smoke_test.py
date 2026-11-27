@@ -113,6 +113,20 @@ try:
             page.evaluate("localStorage.setItem('scopx.ie.demo.v01', JSON.stringify({patients:[{}],procedures:[],reports:[],media:[]}))")
             page.reload(wait_until='networkidle')
             check(page.get_by_text('Demo Patient 01').count()>0 and page.get_by_text('Demo Smoke Patient').count()==0,'malformed persisted local data is replaced with the safe synthetic seed')
+            page.evaluate("""(() => {
+                const original=Storage.prototype.setItem;
+                Storage.prototype.setItem=function(key,value){
+                    if(key==='scopx.ie.demo.v01') throw new DOMException('Synthetic quota failure','QuotaExceededError');
+                    return original.call(this,key,value);
+                };
+            })()""")
+            page.locator('[data-view="patients"]').first.click()
+            page.locator('[data-open-patient]').first.click()
+            page.locator('#patientForm input[name="name"]').fill('Should Not Persist')
+            page.locator('#patientForm input[name="record"]').fill('QUOTA-FAIL-001')
+            page.once('dialog',lambda dialog:dialog.accept())
+            page.locator('#patientForm button[type="submit"]').click()
+            check(page.get_by_text('Should Not Persist').count()==0 and page.locator('#patientDialog').evaluate("(el)=>el.open"),'failed localStorage write rolls back and leaves the form unsubmitted')
             browser.close()
     except Exception as e:
         browser_available=False
