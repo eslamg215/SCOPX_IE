@@ -190,6 +190,23 @@ if scanner_file.exists():
     check('TimeoutSeconds' in scanner_source and 'MaximumBytes' in scanner_source, 'ClamAV adapter enforces upload limits and timeout')
 check('UnavailableMediaMalwareScanner' in mp and 'No malware scanning engine is configured' in mp, 'fallback malware scanner implementation fails closed')
 check('MapMediaEndpoints' not in program and 'IMediaRepository' not in program, 'media routes remain disabled pending scanner, retention, and operational verification')
+check('MaxRequestBodySize = 60 * 1024 * 1024' in program and 'MultipartBodyLengthLimit = 60 * 1024 * 1024' in program, 'host request and multipart limits exceed the 50 MiB media-file cap with bounded overhead')
+if media_api.exists():
+    check('CryptographicOperations.ZeroMemory(plaintext)' in ma and 'CryptographicOperations.ZeroMemory(encrypted)' in ma, 'media upload clears plaintext and encrypted working buffers')
+    check('FileMode.CreateNew' in ma and 'File.Delete(fullPath)' in ma, 'media upload avoids overwriting generated object keys and cleans up failed writes')
+    check('FirstOrDefault()' in ma and 'file.Length > MaxBytes' in ma, 'media upload accepts one bounded file field and enforces the application file-size cap')
+media_repository=infra/'Media/NpgsqlMediaRepository.cs'
+if media_repository.exists():
+    mrepo=media_repository.read_text(encoding='utf-8')
+    check('NpgsqlAuditEventWriter.WriteAsync' in mrepo and 'media.uploaded' in mrepo and 'media.downloaded' in mrepo, 'media upload and verified download audit writes are transactional')
+    check('media.read_attempt' in mrepo and "set_config('scopx.hospital_id'" in mrepo, 'media reads are tenant-scoped and access attempts are audited')
+device_contracts=WORKSTATION/'Devices/DeviceCaptureContracts.cs'
+check(device_contracts.exists(), 'hardware capture adapter contracts exist')
+if device_contracts.exists():
+    dcs=device_contracts.read_text(encoding='utf-8')
+    check('IDeviceCaptureAdapter' in dcs and 'SimulatorCaptureAdapter' in dcs, 'device integration is isolated behind a capture adapter contract')
+    check('no image/video is captured' in dcs and 'Simulation only' in dcs, 'simulator cannot be mistaken for a real video capture source')
+    check('CaptureTransport.NetworkStream' in dcs and 'CaptureTransport.HdmiCaptureCard' in dcs, 'network and HDMI transports are declared as future adapter types only')
 retention_migration=MIGRATIONS/'011_media_retention_lifecycle.sql'
 check(retention_migration.exists(), 'Step 43 media retention lifecycle draft migration exists')
 if retention_migration.exists():
