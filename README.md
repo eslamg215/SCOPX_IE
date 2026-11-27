@@ -340,3 +340,12 @@ Synthetic data and protocol fixtures only. No real capture device or clinical re
 - Added regression coverage using only the no-video simulator for accepted start/stop and blocked invalid options.
 - This boundary is not yet wired to physical device discovery or a real capture driver.
 - See [Step 74 validated capture adapter](docs/STEP-74-VALIDATED-CAPTURE-ADAPTER.md).
+
+
+## Step 75 — Capture readiness and fault-state gate
+
+- The validated adapter now reads and validates provider status before forwarding a start request.
+- Start is permitted only when the provider reports Ready; Capturing, Faulted, Disconnected, or invalid status blocks the request.
+- Added deterministic tests for duplicate starts, fault-state refusal, status timestamp/state/message bounds, and proof that blocked requests never reach the provider.
+- This is a software gate; hardware fault recovery and reconnect behavior remain unimplemented.
+- See [Step 75 capture readiness and fault-state gate](docs/STEP-75-CAPTURE-READINESS-FAULT-GATE.md).
