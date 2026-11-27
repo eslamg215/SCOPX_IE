@@ -442,3 +442,10 @@ The Windows CI publish job now checks that the packaged preview contains the off
 - Offline demo backup imports now reject empty files and files larger than 10 MiB before reading them into memory.
 - Browser acceptance coverage verifies an oversized backup cannot replace existing synthetic records.
 - See [Step 87 backup import size bound](docs/STEP-87-OFFLINE-BACKUP-IMPORT-SIZE-BOUND.md).
+
+
+## Step 88 — Backup export/import size symmetry
+
+- The offline demo now refuses to export a JSON backup larger than the same 10 MiB limit enforced on import.
+- Browser acceptance checks the exported backup size and confirms it remains within the import ceiling.
+- See [Step 88 backup size symmetry](docs/STEP-88-BACKUP-SIZE-SYMMETRY.md).
